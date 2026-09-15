@@ -11,24 +11,28 @@ const SRC_BRAIN = 'precomputed://gs://flywire_neuropil_meshes/whole_neuropil/bra
 const SUGAR = '#ffcc33', LIT_A = [255, 204, 51], LIT_B = [255, 74, 54], DIM = '#15151f', WHITE = '#ffffff';
 
 // ---------- engagement bait = sugar ----------
+// word lists, not phrases: any inflection of any word counts (walk|walks|walked|walking)
+const W = list => new RegExp('\\b(' + list.join('|') + ')(s|es|ed|ing|d)?\\b', 'gi');
 const BAIT = [
-  { label: 'humblebrag',            w: 10, cap: 20, re: /\b(humbled?|honou?red|grateful|thrilled|blessed|delighted|proud|over the moon|dream come true)\b/gi },
-  { label: 'announcement',          w: 15, cap: 30, re: /\b(to announce|announcing|announcement|big news|personal news|some news|life update|happy to share|excited to share|pleased to share|i'?m excited|i'?m thrilled|i'?m proud|couldn'?t have done it without|shout.?out|kudos to)\b/gi },
+  { label: 'humblebrag', w: 6, cap: 30, re: W(['humble','humbled','honou?red','grateful','gratitude','thrilled','blessed','delighted','proud','excited','thankful','overwhelmed','speechless','pinch me']) },
+  { label: 'announcement', w: 6, cap: 24, re: W(['announce','announcement','big news','personal news','some news','life update','milestone','chapter','journey','new role','new position','joined','joining','launch','launched','officially','happy to share','excited to share','pleased to share']) },
+  { label: 'linkedin words', w: 5, cap: 35, re: W(['hustle','grind','mindset','resilience','resilient','passion','passionate','visionary','rockstar','ninja','guru','superpower','authentic','authenticity','vulnerable','vulnerability','impact','impactful','community','network','networking','growth','scale','scaling','crush','crushing','killing it','game.?changer','synerg(y|ies)','disrupt','disruption','thought leader','thought leadership','playbook','masterclass','lesson','lessons','learnings','takeaway','takeaways','win','wins','reminder','story','stories','secret','secrets','hack','hacks','framework','blueprint','roadmap','north star','purpose','legacy','dream','dreams','believe','manifest','abundance','incredible','amazing','insane','wild','massive','huge','epic','unreal','boom','fire','goosebumps','once again','yet again']) },
+  { label: 'AI vocabulary', w: 6, cap: 36, re: W(['delve','tapestry','testament','underscore','vibrant','crucial','pivotal','landscape','meticulous','intricate','intricacies','enduring','garner','bolster','interplay','boast','robust','groundbreaking','renowned','nestled','showcase','foster','cultivate','enhance','harness','seamless','cutting.?edge','ever.?evolving','realm','navigate','navigating','embark','unlock','empower','elevate','profound','invaluable','insight','insights','deep dive','resonate','align','transformative','innovative','innovation','holistic','paradigm','leverage','streamline','optimize','unleash','supercharge','revolutionize','reimagine','redefine','multifaceted','nuanced','comprehensive','dynamic','emphasize','highlight','spotlight','commitment','excellence','exemplify','encompass','fast.?paced','moving forward','at the end of the day','in today','it.?s important to note','let.?s dive in','key takeaway','in conclusion','furthermore','moreover','additionally','ultimately']) },
+  { label: 'engagement bait', w: 10, cap: 30, re: /\b(agree|thoughts|am i wrong|who else|who'?s with me|what would you do)\s*\?|let that sink in|read that again|that'?s (it\.? )?that'?s the (post|tweet)|comment\s+["'“]?[\w!]+["'”]?\s+(and|&)\s+i'?ll|dm me|link in (the )?comments|repost|follow (me )?for more|save this|share this|\u{267B}|\u{1F447}/giu },
+  { label: 'hot take', w: 8, cap: 16, re: /\b(unpopular opinion|hot take|controversial|nobody talks about|not gonna lie|i'?m not going to lie|here'?s the (thing|truth)|the truth is|plot twist|spoiler)\b/gi },
+  { label: 'origin story', w: 8, cap: 16, re: /\b(\d+|two|three|five|ten) (years|months|days) ago\b|\bi (got|was) (rejected|fired|laid off)\b|\bi quit\b|\bfrom .{3,30} to .{3,30}\b/gi },
   { label: 'linkedin about linkedin', w: 12, cap: 12, re: /\blinkedin\b/gi },
-  { label: '"let that sink in"',    w: 15, cap: 15, re: /let that sink in/gi },
-  { label: 'engagement question',   w: 8,  cap: 16, re: /\b(agree|thoughts|what'?s your take|am i wrong|who else|who'?s with me|what would you do)\s*\?/gi },
-  { label: 'new chapter',           w: 8,  cap: 16, re: /\b(next chapter|new chapter|(this|my) journey|new role|new position|joined .{0,40}\bas\b|the power of|couldn'?t be more (excited|proud)|once again|yet another)\b/gi },
-  { label: 'emoji',                 w: 4,  cap: 20, re: /[\u{1F680}\u{1F525}\u{1F4A1}\u{2705}\u{1F447}\u{1F64F}\u{1F4AA}\u{1F3AF}\u{26A1}\u{1F48E}\u{1F440}\u{1F9E0}]/gu },
-  { label: 'comment-to-unlock',     w: 12, cap: 24, re: /comment\s+["'“]?[\w!]+["'”]?\s+(and|&)\s+i'?ll|dm me|link in (the )?comments/gi },
-  { label: 'hot take',              w: 8,  cap: 16, re: /\b(unpopular opinion|hot take|controversial|nobody talks about|not gonna lie|i'?m not going to lie|here'?s the (thing|truth)|the truth is|read that again)\b/gi },
-  { label: 'repost bait',           w: 8,  cap: 16, re: /\b(repost|follow (me )?for more|save this|share this)\b|\u{267B}/giu },
-  { label: 'origin story',          w: 8,  cap: 16, re: /\b(\d+|two|three|five|ten) (years|months|days) ago\b|\bi (got|was) (rejected|fired|laid off)\b|\bi quit\b/gi },
-  { label: 'buzzwords',             w: 4,  cap: 16, re: /\b(game.?changer|10x|masterclass|playbook|lessons? learned|this is the way|mindset|hustle|grind|synerg(y|ies)|thought leader|disrupt|north star|move the needle)\b/gi },
-  { label: 'mentions AI',           w: 3,  cap: 9,  re: /\b(AI|ChatGPT|LLMs?|agents?|GPT-?\d)\b/g },
-  { label: 'bullets',               w: 3,  cap: 12, re: /^\s*(→|✅|•|▪|-|–|—|\d+[.)])\s+/gmu },
-  { label: 'hashtags',              w: 2,  cap: 10, re: /#\w+/g },
-  { label: 'SHOUTING',              w: 2,  cap: 8,  re: /\b[A-Z]{4,}\b/g },
-  { label: '"that\'s the post"',    w: 10, cap: 10, re: /that'?s (it\.? )?that'?s the (post|tweet)/gi },
+  { label: 'mentions AI', w: 3, cap: 9, re: /\b(AI|ChatGPT|LLMs?|agents?|GPT-?\d)\b/g },
+  { label: 'emoji', w: 4, cap: 20, re: /\p{Extended_Pictographic}/gu },
+  { label: 'bullets', w: 3, cap: 12, re: /^\s*(→|✅|•|▪|-|–|—|\d+[.)])\s+/gmu },
+  { label: 'hashtags', w: 2, cap: 10, re: /#\w+/g },
+  { label: 'SHOUTING', w: 2, cap: 8, re: /\b[A-Z]{4,}\b/g },
+  // structural tells (Wikipedia: Signs of AI writing)
+  { label: 'em dashes', w: 4, cap: 12, re: /—|\s-\s/g },
+  { label: '"not only… but also"', w: 10, cap: 10, re: /\bnot (only|just)\b[^.!?\n]{0,80}\bbut (also|it|what|the|a)\b/gi },
+  { label: '"it\'s not X, it\'s Y"', w: 10, cap: 20, re: /\b(it'?s|this is|that'?s|isn'?t|it was never) (not|never)?\s*(about )?[^.!?\n]{2,60}[.,;:—-]\s*(it'?s|this is|that'?s)\b/gi },
+  { label: 'curly quotes', w: 3, cap: 6, re: /[“”‘’]/g },
+  { label: 'rule of three', w: 6, cap: 12, re: /\b\w+\.\s+\w+\.\s+\w+\.(\s|$)|\b\w+, \w+,? and \w+\b/g },
 ];
 function scoreBait(text) {
   const hits = []; let total = 0;
@@ -37,14 +41,17 @@ function scoreBait(text) {
     const pts = Math.min(b.cap, n * b.w); total += pts; hits.push({ label: b.label, n, pts });
   }
   const lines = text.split(/\n/).map(s => s.trim()).filter(Boolean);
-  if (lines.length >= 5) {
+  if (lines.length >= 4) {
     const short = lines.filter(l => l.length <= 70).length / lines.length;
     if (short > 0.6) { const pts = Math.round(short * 25); total += pts; hits.push({ label: 'one-sentence paragraphs', n: lines.length, pts }); }
   }
+  // density: a short post that is nothing but sugar is still sugar
+  const words = Math.max(12, text.split(/\s+/).length);
+  total += Math.round(30 * Math.min(1, total / words));
   hits.sort((a, b) => b.pts - a.pts);
   return { score: Math.min(100, total), hits };
 }
-const rateFor = s => RATES[s < 8 ? 0 : s < 25 ? 1 : s < 40 ? 2 : s < 55 ? 3 : s < 75 ? 4 : 5];
+const rateFor = s => RATES[s < 12 ? 0 : s < 25 ? 1 : s < 40 ? 2 : s < 55 ? 3 : s < 75 ? 4 : 5];
 function fnv(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h; }
 
 // ---------- verdicts: mn9 Hz → [title, fly state, bubble] ----------
