@@ -117,6 +117,7 @@ function verdictFor(run) {
   return            ['CERTIFIED SHITPOST. The fly is licking the screen.',    'love', 'SUGARRRR 🤤'];
 }
 const rotScore = run => run.n_active > MELTDOWN ? 100 : Math.min(100, Math.round(run.mn9 * 1.25));
+const tierOf = run => run.n_active > MELTDOWN ? 6 : run.mn9 === 0 ? 0 : run.mn9 < 10 ? 1 : run.mn9 < 25 ? 2 : run.mn9 < 45 ? 3 : run.mn9 < 65 ? 4 : 5;
 
 // ---------- neuroglancer control (same-origin iframe) ----------
 const ng = document.getElementById('ng');
@@ -318,10 +319,12 @@ async function feed(e) {
       <div class="s-why">${c.why}</div></div>`;
   }).join('');
   $('senses').hidden = false;
-  const site = location.origin + location.pathname;
-  const copyText = `🪰 BRAIN ROT: ${rot}% — ${title}\n\nI fed my LinkedIn post to a simulated fruit fly brain (139,255 real neurons). ${melt ? `It triggered a runaway state in ${run.n_active.toLocaleString()} neurons.` : `The tongue motor neuron fired at ${run.mn9} Hz.`} Flies know a shitpost when they taste one.\n\n${site}`;
+  const site = location.origin;
+  const shareUrl = `${site}/s?r=${rot}&t=${tierOf(run)}&m=${run.mn9}`;
+  const copyText = `🪰 BRAIN ROT: ${rot}% — ${title}\n\nI fed my LinkedIn post to a simulated fruit fly brain (139,255 real neurons). ${melt ? `It triggered a runaway state in ${run.n_active.toLocaleString()} neurons.` : `The tongue motor neuron fired at ${run.mn9} Hz.`} Flies know a shitpost when they taste one.\n\n${shareUrl}`;
   $('copy').onclick = async () => { try { await navigator.clipboard.writeText(copyText); $('copy').textContent = 'Copied!'; setTimeout(() => $('copy').textContent = 'Copy verdict', 1500); } catch (e) { prompt('Copy this:', copyText); } };
-  $('share').href = 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(site);
+  $('share').href = 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(shareUrl);
+  $('pct').textContent = '';
   const ngState = { layers: [{ type: 'segmentation', source: SRC_NEURONS, segments: all, segmentColors: colors, name: 'neurons that judged your post' },
                              { type: 'segmentation', source: SRC_BRAIN, segments: ['1'], objectAlpha: 0.08, name: 'brain' }],
                     dimensions: { x: [1.6e-8, 'm'], y: [1.6e-8, 'm'], z: [4e-8, 'm'] }, position: [34000, 19000, 3000], projectionScale: 50000, layout: '3d', showSlices: false };
@@ -331,11 +334,22 @@ async function feed(e) {
   fetch('/api/rate', { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ post: text, bait_score: pts.sugar, bait: Object.values(hits).flat().map(h => h.label), rate: SUGAR_L[levels.sugar], run: run.k, mn9: run.mn9, fly_score: rot,
                            levels, n_active: run.n_active }) })
-    .then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} shitposts fed to the fly so far`; }).catch(() => {});
+    .then(r => r.ok ? r.json() : null).then(d => {
+      if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} shitposts fed to the fly so far`;
+      if (d && d.percentile != null && d.count > 20) $('pct').textContent = rot === 0 ? `Less rotten than ${100 - d.percentile}% of posts fed to the fly.` : `Shittier than ${d.percentile}% of posts fed to the fly.`;
+    }).catch(() => {});
   busy = false; go.disabled = false; awaitingNew = true; go.textContent = 'Feed it another'; $('feedbox').classList.remove('fed'); orbitSpeed = 0.004;
 }
 let awaitingNew = false;
 function newPost() { awaitingNew = false; go.textContent = 'Feed the fly'; softReset(); post.value = ''; post.focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 $('feedbox').addEventListener('submit', feed);
+document.getElementById('hall-x').addEventListener('toggle', async e => {
+  if (!e.target.open || e.target.dataset.loaded) return; e.target.dataset.loaded = 1;
+  try {
+    const d = await fetch('/api/top').then(r => r.json());
+    const row = x => `<div class="hr"><span class="hr-s" style="color:${x.melt ? '#ff3b3b' : x.score < 30 ? '#ff5a5a' : '#b6ff3b'}">${x.score}%</span><span class="hr-t">${x.post.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}…</span></div>`;
+    $('hall').innerHTML = (d.top.length ? `<h4>🏆 shittiest so far</h4>` + d.top.map(row).join('') : '<p>nothing yet. be the first.</p>') + (d.bottom.length ? `<h4>🪦 too much substance</h4>` + d.bottom.map(row).join('') : '');
+  } catch (err) { $('hall').textContent = 'the hall is closed right now.'; }
+});
 post.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') feed(e); });
 })();

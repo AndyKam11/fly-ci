@@ -1,10 +1,52 @@
 {
   "redirects": [
-    { "source": "/(.*)", "has": [{ "type": "host", "value": "brainrot-posts.vercel.app" }], "destination": "https://brainrotposts.com/$1", "permanent": true },
-    { "source": "/(.*)", "has": [{ "type": "host", "value": "www.brainrotposts.com" }], "destination": "https://brainrotposts.com/$1", "permanent": true }
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "brainrot-posts.vercel.app"
+        }
+      ],
+      "destination": "https://brainrotposts.com/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.brainrotposts.com"
+        }
+      ],
+      "destination": "https://brainrotposts.com/$1",
+      "permanent": true
+    }
   ],
   "headers": [
-    { "source": "/ng/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
-    { "source": "/runs.json", "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }] }
+    {
+      "source": "/ng/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/runs.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/s",
+      "destination": "/api/share"
+    }
   ]
 }
