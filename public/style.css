@@ -17,7 +17,7 @@ a{color:var(--sugar)}
 .tag b{color:var(--ink)}
 
 .stage{position:relative;background:#07070c;border:1px solid var(--line);border-radius:18px;overflow:hidden;aspect-ratio:16/10;min-height:460px}
-@media(max-width:720px){.stage{aspect-ratio:auto;height:min(92dvh,760px)}.flychar{transform:scale(.72);transform-origin:top right;right:4%;top:6%}.stamp{bottom:36%;right:3%}}
+@media(pointer:coarse){#ng{pointer-events:none}.drag{display:none}}
 #ng{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
 .hud{position:absolute;left:14px;top:12px;display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--mute);pointer-events:none}
 .dot{width:8px;height:8px;border-radius:50%;background:#3a3a55;transition:background .2s}
@@ -26,6 +26,7 @@ a{color:var(--sugar)}
 #meterfill{height:100%;background:var(--sugar);transform-origin:left;transform:scaleX(0);transition:transform .15s linear}
 
 /* the post goes in the bottom-left corner of the stage */
+.lab{position:relative}
 .feedbox{position:absolute;left:14px;bottom:14px;width:min(380px,calc(100% - 28px));display:flex;flex-direction:column;gap:8px;
   transition:transform .35s ease-out,opacity .35s ease-out}
 .feedbox.fed{transform:translateY(12px) scale(.96);opacity:.35;pointer-events:none}
@@ -119,3 +120,18 @@ body.og .ogtag b{color:var(--ink)}
 .flychar[data-state="melt"]{transform:translate(-20%,30%) scale(1.15)}
 .flychar[data-state="melt"] .fly{animation:spin .5s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+.key{position:absolute;left:14px;top:34px;display:flex;gap:10px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--mute);pointer-events:none}
+.key span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:5px;vertical-align:middle}
+
+/* phones: post box below the brain, no overlay */
+@media(max-width:720px){
+  .stage{aspect-ratio:auto;height:min(58dvh,520px)}
+  .feedbox{position:static;width:100%;margin-top:10px}
+  .feedbox.fed{transform:none;opacity:.6}
+  .flychar{transform:scale(.72);transform-origin:top right;right:4%;top:6%}
+  .flychar[data-state="landing"],.flychar[data-state="tasting"]{transform:translate(-30%,90%) scale(.6)}
+  .stamp{bottom:6%;right:3%;border-width:4px;padding:6px 12px 8px}
+  .stamp .pct{font-size:44px}.stamp .lbl{font-size:12px}
+  .hud{font-size:11px}
+}

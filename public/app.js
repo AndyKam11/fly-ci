@@ -10,6 +10,8 @@ const SRC_BRAIN = 'precomputed://gs://flywire_neuropil_meshes/whole_neuropil/bra
 const SUGAR_L = [0, 60, 90, 120, 150, 180, 220], BITTER_L = [0, 60, 120, 200];
 const MELTDOWN = 3000;                         // active neurons above this = the model's runaway state
 const DIM = '#15151f', WHITE = '#ffffff';
+const ATTR = { s: '#ffcc33', b: '#c56bff', m: '#5dff9a', o: '#5ab8ff', v: '#e8f4ff', x: '#ff9a3d', '?': '#ff6a3d' };   // cascade colour by sense that owns the neuron
+const ATTR_NAME = { s: 'sugar', b: 'bitter', m: 'smell', o: 'hearing', v: 'sight', x: 'mixed', '?': 'other' };
 const CH = {                                   // channel → sensor colour, icon, name, science
   sugar:  { c: '#ffcc33', icon: '🍬', name: 'Taste (sugar)',  what: 'sugar-sensing neurons on the fly\'s tongue and legs', why: 'Engagement bait is sugar. Sugar neurons → brain → MN9, the motor neuron that extends the proboscis. Validated in the paper.' },
   bitter: { c: '#c56bff', icon: '🧪', name: 'Taste (bitter)', what: 'bitter-sensing neurons', why: 'Substance is bitter. Bitter input suppresses sugar-evoked proboscis extension — also validated in the paper. Good posts make the fly recoil.' },
@@ -226,7 +228,7 @@ let sampleIdx = 0;
 $('sample').addEventListener('click', () => { post.value = SAMPLES[sampleIdx++ % SAMPLES.length]; softReset(); post.focus(); preload(); });
 function softReset() {
   $('stamp').hidden = true; $('verdict').hidden = true; $('senses').hidden = true;
-  fly('idle'); setSegments([]); phase.textContent = '139,255 neurons · idle'; dot.classList.remove('live'); meter.style.transform = 'scaleX(0)'; orbitSpeed = 0.004;
+  fly('idle'); setSegments([]); phase.textContent = '139,255 neurons · idle'; dot.classList.remove('live'); meter.style.transform = 'scaleX(0)'; orbitSpeed = 0.004; $('key').hidden = true;
 }
 post.addEventListener('input', () => { if (awaitingNew) { awaitingNew = false; go.textContent = 'Feed the fly'; } if (!busy && !$('stamp').hidden) softReset(); preload(); });
 $('again').addEventListener('click', newPost);
@@ -241,8 +243,6 @@ function preload() {
   }, 400);
 }
 const isLink = t => /https?:\/\/|\blinkedin\.com\//i.test(t) && t.split(/\s+/).length < 25;
-const hex = (a, b, t) => '#' + [0, 1, 2].map(i => Math.round(a[i] + (b[i] - a[i]) * t).toString(16).padStart(2, '0')).join('');
-const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 
 async function feed(e) {
   if (e) e.preventDefault();
@@ -276,12 +276,13 @@ async function feed(e) {
 
   phase.textContent = melt ? 'signal propagating… uncontrollably' : 'signal propagating through 139,255 neurons…';
   fly('watching'); buzz(false); if (melt) orbitSpeed = 0.02;
-  const A = melt ? rgb('#ff3b3b') : rgb('#ffcc33'), B = melt ? rgb('#ff2bd6') : rgb('#ff4a36');
   const stimSet = new Set(Object.values(run.stim).flat());
+  const used = [...new Set(seq.map(x => x[2]))].filter(k => ATTR[k]);
+  $('key').innerHTML = used.map(k => `<span style="--c:${ATTR[k]}">${ATTR_NAME[k]}</span>`).join(''); $('key').hidden = false;
   const DUR = melt ? 4500 : 6000, t0 = performance.now(); let i = 0, lit = new Set();
   while (i < seq.length) {
     const ms = Math.min(1000, (performance.now() - t0) / DUR * 1000); const c = {};
-    while (i < seq.length && seq[i][0] <= ms) { const id = seq[i][1]; if (!stimSet.has(id) && id !== MN9) { c[id] = hex(A, B, i / seq.length); lit.add(id); } i++; }
+    while (i < seq.length && seq[i][0] <= ms) { const [, id, k] = seq[i]; if (!stimSet.has(id) && id !== MN9) { c[id] = ATTR[k] || ATTR['?']; lit.add(id); } i++; }
     if (Object.keys(c).length) { setColors(c); sfx.spike(); }
     meter.style.transform = `scaleX(${ms / 1000})`;
     phase.textContent = `${melt ? run.n_active.toLocaleString() + ' neurons firing' : lit.size + ' neurons lit'} · ${Math.round(ms)} ms of brain time`;

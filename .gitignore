@@ -4,3 +4,4 @@ node_modules
 .claude
 .env*
 calib/
+public/mtest.html
