@@ -21,6 +21,7 @@ export default async function handler(req, res) {
     const row = {
       post, bait_score: Number(b.bait_score) || 0, bait: Array.isArray(b.bait) ? b.bait.slice(0, 20) : [],
       rate: Number(b.rate) || 0, run: Number(b.run) || 0, mn9: Number(b.mn9) || 0, fly_score: Number(b.fly_score) || 0,
+      levels: b.levels && typeof b.levels === 'object' ? b.levels : null, n_active: Number(b.n_active) || 0,
       ua: String(req.headers['user-agent'] || '').slice(0, 300), country: req.headers['x-vercel-ip-country'] || null,
     };
     const r = await fetch(T(), { method: 'POST', headers: { ...H(), Prefer: 'return=minimal' }, body: JSON.stringify(row) });

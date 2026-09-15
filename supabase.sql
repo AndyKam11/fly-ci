@@ -15,3 +15,5 @@ create table if not exists ratings (
 alter table ratings enable row level security;   -- no anon access; the API uses the service key
 create index if not exists ratings_created_at on ratings (created_at desc);
 create index if not exists ratings_fly_score on ratings (fly_score desc);
+
+alter table ratings add column if not exists levels jsonb, add column if not exists n_active int not null default 0;

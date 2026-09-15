@@ -41,7 +41,7 @@ const BAIT = [
   { ch: 'sight', label: 'emoji', w: 4, cap: 20, re: /\p{Extended_Pictographic}/gu },
   { ch: 'sight', label: 'bullets', w: 3, cap: 12, re: /^\s*(→|✅|•|▪|-|–|—|\d+[.)])\s+/gmu },
   { ch: 'sight', label: 'arrows & ticks', w: 2, cap: 8, re: /[→↳✓✔︎★☆]/gu },
-  { ch: 'bitter', label: 'numbers with units', w: 4, cap: 20, re: /\b\d[\d,.]*\s?(%|k|m|x|days?|weeks?|months?|years?|hours?|customers?|users?|people|deals?|calls?|emails?|€|\$|usd|eur)\b|[$€£]\s?\d/gi },
+  { ch: 'bitter', label: 'numbers with units', w: 3, cap: 12, re: /\b\d[\d,.]*\s?(%|k|m|x|days?|weeks?|months?|years?|hours?|customers?|users?|people|deals?|calls?|emails?|€|\$|usd|eur)\b|[$€£]\s?\d/gi },
   { ch: 'bitter', label: 'reasoning', w: 2, cap: 12, re: /\b(because|however|instead|although|whereas|in practice|turns out|the catch|trade.?off|the problem was|what actually)\b/gi },
   { ch: 'bitter', label: 'specifics', w: 3, cap: 12, re: /\b(postgres|sql|api|q[1-4]|churn|arr|mrr|cac|nps|p&l|gross margin|term sheet|clause|termination|rev share|rfp|soc ?2|gdpr|kubernetes|latency|onboarding flow)\b/gi },
 ];
@@ -70,7 +70,8 @@ function sense(text) {
   const s = pts.sugar, b = pts.bitter;
   const levels = {
     sugar:  s < 1 ? 0 : s < 12 ? 1 : s < 25 ? 2 : s < 40 ? 3 : s < 55 ? 4 : s < 75 ? 5 : 6,
-    bitter: b < 8 ? 0 : b < 22 ? 1 : b < 40 ? 2 : 3,
+    // bitter is a hard veto in the model, so substance only counts when it outweighs the sugar
+    bitter: (b < 24 || b < s) ? 0 : b < 40 ? 1 : b < 60 ? 2 : 3,
     smell:  pts.smell < 6 ? 0 : pts.smell < 22 ? 1 : 2,
     sound:  pts.sound >= 6 ? 1 : 0,
     sight:  pts.sight >= 6 ? 1 : 0,
@@ -227,8 +228,8 @@ function softReset() {
   $('stamp').hidden = true; $('verdict').hidden = true; $('senses').hidden = true;
   fly('idle'); setSegments([]); phase.textContent = '139,255 neurons · idle'; dot.classList.remove('live'); meter.style.transform = 'scaleX(0)'; orbitSpeed = 0.004;
 }
-post.addEventListener('input', () => { if (!busy && !$('stamp').hidden) softReset(); preload(); });
-$('again').addEventListener('click', () => { softReset(); post.value = ''; post.focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+post.addEventListener('input', () => { if (awaitingNew) { awaitingNew = false; go.textContent = 'Feed the fly'; } if (!busy && !$('stamp').hidden) softReset(); preload(); });
+$('again').addEventListener('click', newPost);
 
 // preload: while the post is being typed, quietly stream the meshes of the run it will get
 let preloadTimer = null;
@@ -245,6 +246,7 @@ const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 
 async function feed(e) {
   if (e) e.preventDefault();
+  if (awaitingNew) { newPost(); return; }
   const text = post.value.trim();
   if (!text) { post.focus(); return; }
   if (isLink(text)) { fly('idle', "that's a link. the fly can't click. paste the text."); post.focus(); return; }
@@ -329,8 +331,10 @@ async function feed(e) {
     body: JSON.stringify({ post: text, bait_score: pts.sugar, bait: Object.values(hits).flat().map(h => h.label), rate: SUGAR_L[levels.sugar], run: run.k, mn9: run.mn9, fly_score: rot,
                            levels, n_active: run.n_active }) })
     .then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} shitposts fed to the fly so far`; }).catch(() => {});
-  busy = false; go.disabled = false; go.textContent = 'Feed it another shitpost'; $('feedbox').classList.remove('fed'); orbitSpeed = 0.004;
+  busy = false; go.disabled = false; awaitingNew = true; go.textContent = 'Feed it another'; $('feedbox').classList.remove('fed'); orbitSpeed = 0.004;
 }
+let awaitingNew = false;
+function newPost() { awaitingNew = false; go.textContent = 'Feed the fly'; softReset(); post.value = ''; post.focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 $('feedbox').addEventListener('submit', feed);
 post.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') feed(e); });
 })();
