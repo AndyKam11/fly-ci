@@ -12,10 +12,12 @@ const SUGAR = '#ffcc33', LIT_A = [255, 204, 51], LIT_B = [255, 74, 54], DIM = '#
 
 // ---------- engagement bait = sugar ----------
 const BAIT = [
-  { label: 'humblebrag',            w: 10, cap: 20, re: /\b(humbled|honou?red|grateful|thrilled|blessed|excited to (announce|share))\b/gi },
+  { label: 'humblebrag',            w: 10, cap: 20, re: /\b(humbled?|honou?red|grateful|thrilled|blessed|delighted|proud|over the moon|dream come true)\b/gi },
+  { label: 'announcement',          w: 15, cap: 30, re: /\b(to announce|announcing|announcement|big news|personal news|some news|life update|happy to share|excited to share|pleased to share|i'?m excited|i'?m thrilled|i'?m proud|couldn'?t have done it without|shout.?out|kudos to)\b/gi },
+  { label: 'linkedin about linkedin', w: 12, cap: 12, re: /\blinkedin\b/gi },
   { label: '"let that sink in"',    w: 15, cap: 15, re: /let that sink in/gi },
   { label: 'engagement question',   w: 8,  cap: 16, re: /\b(agree|thoughts|what'?s your take|am i wrong|who else|who'?s with me|what would you do)\s*\?/gi },
-  { label: 'new chapter',           w: 8,  cap: 16, re: /\b(next chapter|new chapter|this journey|new role|joined .{0,40}\bas\b|the power of|couldn'?t be more (excited|proud))\b/gi },
+  { label: 'new chapter',           w: 8,  cap: 16, re: /\b(next chapter|new chapter|(this|my) journey|new role|new position|joined .{0,40}\bas\b|the power of|couldn'?t be more (excited|proud)|once again|yet another)\b/gi },
   { label: 'emoji',                 w: 4,  cap: 20, re: /[\u{1F680}\u{1F525}\u{1F4A1}\u{2705}\u{1F447}\u{1F64F}\u{1F4AA}\u{1F3AF}\u{26A1}\u{1F48E}\u{1F440}\u{1F9E0}]/gu },
   { label: 'comment-to-unlock',     w: 12, cap: 24, re: /comment\s+["'“]?[\w!]+["'”]?\s+(and|&)\s+i'?ll|dm me|link in (the )?comments/gi },
   { label: 'hot take',              w: 8,  cap: 16, re: /\b(unpopular opinion|hot take|controversial|nobody talks about|not gonna lie|i'?m not going to lie|here'?s the (thing|truth)|the truth is|read that again)\b/gi },
@@ -142,14 +144,24 @@ let RUNS = null, busy = false;
 fetch('runs.json').then(r => r.json()).then(r => { RUNS = r; }).catch(() => { phase.textContent = 'could not load the brain'; });
 fetch('/api/rate').then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} posts fed to the fly so far`; }).catch(() => {});
 
+const SAMPLES = [
+  `I got rejected by 47 investors.\n\nThen one said yes.\n\nHere's what I learned about resilience 👇\n\n→ Rejection is redirection.\n→ Your network is your net worth.\n→ Consistency > talent. Every. Single. Time.\n\n3 years ago I was sleeping on a couch. Today we're a team of 12.\n\nNot because I'm special. Because I didn't quit.\n\nLet that sink in.\n\nHumbled to announce we just closed our Series A 🚀\n\nAgree? Repost ♻️ to help someone who needs this today.\n\n#founders #startups #mindset #AI`,
+  `Humbled to announce I've updated my LinkedIn profile once again. 🙏\n\nThis journey hasn't been easy. But I couldn't have done it without every single one of you.\n\nHere's to the next chapter 🚀\n\n#grateful #newbeginnings`,
+  `Nobody talks about this.\n\nAI won't replace you.\n\nA person using AI will.\n\nHere's the playbook I use every day 👇\n\n1. ChatGPT for drafts\n2. Agents for research\n3. Automation for the rest\n\nComment "AI" and I'll DM you my full stack.\n\n#AI #productivity #futureofwork`,
+  `Unpopular opinion: your degree doesn't matter.\n\nI hired 30 people last year.\n\nNot one of them because of their school.\n\nWhat mattered:\n✅ Curiosity\n✅ Ownership\n✅ Speed\n\nSkills > credentials. Let that sink in.\n\nAgree? ♻️ Repost to help a student who needs this.`,
+];
+let sampleIdx = 0;
 $('sample').addEventListener('click', () => {
-  post.value = `I got rejected by 47 investors.\n\nThen one said yes.\n\nHere's what I learned about resilience 👇\n\n→ Rejection is redirection.\n→ Your network is your net worth.\n→ Consistency > talent. Every. Single. Time.\n\n3 years ago I was sleeping on a couch. Today we're a team of 12.\n\nNot because I'm special. Because I didn't quit.\n\nLet that sink in.\n\nHumbled to announce we just closed our Series A 🚀\n\nAgree? Repost ♻️ to help someone who needs this today.\n\n#founders #startups #mindset #AI`;
-  post.focus();
+  post.value = SAMPLES[sampleIdx++ % SAMPLES.length]; softReset(); post.focus();
 });
-$('again').addEventListener('click', () => {
-  $('feedbox').classList.remove('fed'); $('stamp').hidden = true; $('verdict').hidden = true;
+// clear the last verdict when the post changes, so the box is always ready for another one
+function softReset() {
+  $('stamp').hidden = true; $('verdict').hidden = true;
   fly('idle'); setSegments([]); phase.textContent = '139,255 neurons · idle'; dot.classList.remove('live'); meter.style.transform = 'scaleX(0)';
-  post.value = ''; post.focus(); window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+post.addEventListener('input', () => { if (!busy && !$('stamp').hidden) softReset(); });
+$('again').addEventListener('click', () => {
+  softReset(); post.value = ''; post.focus(); window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -236,7 +248,8 @@ async function feed(e) {
     body: JSON.stringify({ post: text, bait_score: bait.score, bait: bait.hits.map(h => h.label), rate, run: run.k, mn9: run.mn9, fly_score: rot }) })
     .then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} posts fed to the fly so far`; }).catch(() => {});
 
-  busy = false; go.disabled = false;
+  busy = false; go.disabled = false; go.textContent = 'Feed it another';
+  $('feedbox').classList.remove('fed');
 }
 $('feedbox').addEventListener('submit', feed);
 post.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') feed(e); });
