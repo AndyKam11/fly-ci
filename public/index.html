@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Brain Rot</title>
+<meta name="description" content="Paste your LinkedIn post. A real fruit fly brain rates it. The worse the post, the more the fly loves it.">
+<meta property="og:title" content="Brain Rot — a fruit fly brain rates your LinkedIn post">
+<meta property="og:description" content="139,255 real neurons. The worse the post, the more the fly loves it.">
+<meta property="og:image" content="/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪰</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <div class="wordmark">BRAIN<span>ROT</span></div>
+    <p class="tag">Paste a LinkedIn post. A real fruit fly brain rates it.<br><b>The worse the post, the more the fly loves it.</b></p>
+  </header>
+
+  <section class="stage">
+    <iframe id="ng" src="ng/embed.html" title="Fly brain" loading="eager"></iframe>
+    <div class="hud"><span class="dot"></span><span id="phase">139,255 neurons · idle</span></div>
+    <div class="meter" aria-hidden="true"><div id="meterfill"></div></div>
+
+    <div class="flychar" id="flychar" data-state="idle">
+      <div class="bubble" id="bubble" hidden></div>
+      <div class="fly" id="flybody">🪰</div>
+      <div class="fx" id="fx" aria-hidden="true"></div>
+    </div>
+
+    <form class="feedbox" id="feedbox" autocomplete="off">
+      <textarea id="post" rows="6" spellcheck="false" placeholder="Humbled to announce…" aria-label="Your LinkedIn post"></textarea>
+      <div class="row">
+        <button id="go" class="btn" type="submit">Feed the fly</button>
+        <button id="sample" class="btn ghost" type="button">cringe sample</button>
+      </div>
+    </form>
+
+    <div class="stamp" id="stamp" hidden><div class="pct"><span id="score">0</span>%</div><div class="lbl">BRAIN ROT</div></div>
+  </section>
+
+  <section id="verdict" class="verdict" hidden>
+    <div class="v-title" id="v-title"></div>
+    <div class="tele" id="tele"></div>
+    <div class="row center">
+      <button id="copy" class="btn" type="button">Copy verdict</button>
+      <a id="share" class="btn ghost" target="_blank" rel="noopener">Share on LinkedIn</a>
+      <a id="ng-link" class="btn ghost" target="_blank" rel="noopener">See the neurons</a>
+      <button id="again" class="btn ghost" type="button">Feed it another</button>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <details>
+      <summary>wait, is this real?</summary>
+      <p>Yes. <a href="https://flywire.ai" target="_blank" rel="noopener">FlyWire</a> mapped every neuron in a fruit fly brain; <a href="https://www.nature.com/articles/s41586-024-07763-9" target="_blank" rel="noopener">Shiu et al. (Nature 2024)</a> turned it into a simulation of all 139,255 neurons. Your post is scanned for engagement bait — "humbled", 🚀, one-line paragraphs, "Agree?", "Let that sink in". Bait is sugar. Sugar goes into the fly's sugar-sensing neurons, the signal runs through the whole brain, and if MN9 (the motor neuron that extends the fly's tongue) fires, the fly wants it. That pathway is a validated result of the paper. The 3D view is the real reconstruction, showing the neurons that actually fired, in spike order. The simulations were run in advance at six sugar levels; your post picks one. Posts are logged. Built by <a href="https://www.linkedin.com/in/franzschrepf/" target="_blank" rel="noopener">Franz Schrepf</a> with <a href="https://github.com/philshiu/Drosophila_brain_model" target="_blank" rel="noopener">philshiu/Drosophila_brain_model</a> and <a href="https://github.com/google/neuroglancer" target="_blank" rel="noopener">Neuroglancer</a>.</p>
+    </details>
+    <div class="count" id="count"></div>
+  </footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
