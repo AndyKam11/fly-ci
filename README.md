@@ -10,7 +10,7 @@ A real fruit fly brain rates your LinkedIn post. The worse the post, the more th
 4. The 3D view is a self-hosted [Neuroglancer](https://github.com/google/neuroglancer) (`public/ng/`, Apache-2.0) streaming the real FlyWire meshes from Google Cloud Storage; neurons light up in spike order.
 5. `api/rate.js` (Vercel function) logs each judged post to Supabase (`supabase.sql`).
 
-**Regenerating the simulations** (needs `../Drosophila_brain_model` with its `.venv`):
+**Regenerating the simulations** — copy `sim/*.py` into a checkout of [philshiu/Drosophila_brain_model](https://github.com/philshiu/Drosophila_brain_model) (Python 3.12 venv with brian2, pandas, pyarrow, joblib):
 
 ```bash
 cd ../Drosophila_brain_model
@@ -20,6 +20,6 @@ PYTHONPATH=. .venv/bin/python prep_runs.py         # → ../flyfluencer/public/r
 
 **Local dev**: `cd public && python3 -m http.server 8787` → http://localhost:8787 (the API is skipped locally).
 
-**Deploy**: import the repo on Vercel (root = this folder, no build step). Env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`. Run `supabase.sql` once in the Supabase SQL editor.
+**Deploy**: Vercel, no build step (`npx vercel --prod`). Env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`. Run `supabase.sql` once in the Supabase SQL editor. Live: https://brainrot-umber.vercel.app
 
 **Share image**: open `/?og=1`, wait for the run, screenshot the 1200×630 stage → `public/og.png`.

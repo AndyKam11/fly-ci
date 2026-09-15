@@ -2,3 +2,4 @@
 ng.tgz
 node_modules
 .claude
+.env*
