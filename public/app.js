@@ -343,13 +343,19 @@ async function feed(e) {
 let awaitingNew = false;
 function newPost() { awaitingNew = false; go.textContent = 'Feed the fly'; softReset(); post.value = ''; post.focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 $('feedbox').addEventListener('submit', feed);
-document.getElementById('hall-x').addEventListener('toggle', async e => {
-  if (!e.target.open || e.target.dataset.loaded) return; e.target.dataset.loaded = 1;
+document.getElementById('hall-x').addEventListener('toggle', e => { if (e.target.open && !e.target.dataset.loaded) { e.target.dataset.loaded = 1; loadHall(); } });
+let voted = new Set(); try { voted = new Set(JSON.parse(localStorage.getItem('rot-votes') || '[]')); } catch (e) {}
+async function loadHall() {
   try {
     const d = await fetch('/api/top').then(r => r.json());
-    const row = x => `<div class="hr"><span class="hr-s" style="color:${x.melt ? '#ff3b3b' : x.score < 30 ? '#ff5a5a' : '#b6ff3b'}">${x.score}%</span><span class="hr-t">${x.post.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}…</span></div>`;
-    $('hall').innerHTML = (d.top.length ? `<h4>🏆 shittiest so far</h4>` + d.top.map(row).join('') : '<p>nothing yet. be the first.</p>') + (d.bottom.length ? `<h4>🪦 too much substance</h4>` + d.bottom.map(row).join('') : '');
+    const row = x => `<div class="hr"><button class="vote ${voted.has(x.id) ? 'did' : ''}" data-id="${x.id}" title="the fly agrees">🪰 <b>${x.votes}</b></button><span class="hr-s" style="color:${x.melt ? '#ff3b3b' : x.score < 30 ? '#ff5a5a' : '#b6ff3b'}">${x.score}%</span><span class="hr-t">${x.post.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}…</span></div>`;
+    $('hall').innerHTML = (d.top.length ? `<h4>🏆 shittiest so far · upvote with the fly</h4>` + d.top.map(row).join('') : '<p>nothing yet. be the first.</p>') + (d.bottom.length ? `<h4>🪦 too much substance</h4>` + d.bottom.map(row).join('') : '');
+    $('hall').querySelectorAll('.vote').forEach(btn => btn.addEventListener('click', async () => {
+      const id = Number(btn.dataset.id); if (voted.has(id)) return;
+      voted.add(id); try { localStorage.setItem('rot-votes', JSON.stringify([...voted])); } catch (e) {}
+      btn.classList.add('did'); btn.querySelector('b').textContent = Number(btn.querySelector('b').textContent) + 1; blip(880, .1, 'triangle', .1);
+      fetch('/api/vote', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) }).catch(() => {});
+    }));
   } catch (err) { $('hall').textContent = 'the hall is closed right now.'; }
-});
-post.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') feed(e); });
+}
 })();

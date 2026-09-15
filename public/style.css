@@ -142,3 +142,6 @@ body.og .ogtag b{color:var(--ink)}
 .hr{display:flex;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);align-items:baseline}
 .hr-s{font-family:var(--disp);font-size:18px;min-width:64px}
 .hr-t{color:var(--mute);text-wrap:pretty}
+.vote{appearance:none;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:3px 8px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;transition:transform .12s ease-out}
+.vote:hover{border-color:var(--sugar);transform:translateY(-1px)}
+.vote.did{background:var(--sugar);color:var(--sugar-ink);border-color:var(--sugar);cursor:default}

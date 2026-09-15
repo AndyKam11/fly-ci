@@ -17,3 +17,10 @@ create index if not exists ratings_created_at on ratings (created_at desc);
 create index if not exists ratings_fly_score on ratings (fly_score desc);
 
 alter table ratings add column if not exists levels jsonb, add column if not exists n_active int not null default 0;
+
+-- hall of rot upvotes
+alter table ratings add column if not exists votes int not null default 0;
+create index if not exists ratings_votes on ratings (votes desc, fly_score desc);
+create or replace function increment_votes(rid bigint) returns int language sql security definer as $$
+  update ratings set votes = votes + 1 where id = rid returning votes;
+$$;
