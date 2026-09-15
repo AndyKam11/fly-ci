@@ -94,3 +94,28 @@ body.og .ogmark{position:absolute;left:28px;bottom:22px;font-family:var(--disp);
 body.og .ogmark span{color:var(--rot)}
 body.og .ogtag{position:absolute;left:30px;top:44px;font-size:22px;color:var(--mute);max-width:34ch}
 body.og .ogtag b{color:var(--ink)}
+
+/* expandable explainers */
+.x{margin-top:14px;text-align:left}
+.x summary{cursor:pointer;font-weight:700;color:var(--mute);font-size:14px;list-style:none;display:inline-flex;align-items:center;gap:8px}
+.x summary::before{content:"+";display:inline-grid;place-items:center;width:20px;height:20px;border:1px solid var(--line);border-radius:6px;font-weight:800;color:var(--ink)}
+.x[open] summary::before{content:"–"}
+.x summary:hover{color:var(--ink)}
+.senses{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:12px}
+.sense{border:1px solid var(--line);border-radius:12px;padding:12px;font-size:13px;color:var(--mute);opacity:.45;background:#0a0a10}
+.sense.on{opacity:1;border-color:color-mix(in srgb,var(--c) 45%,var(--line))}
+.s-head{display:flex;align-items:center;gap:8px;color:var(--ink);margin-bottom:6px}
+.s-icon{font-size:18px}
+.s-lvl{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--c)}
+.s-trig{color:var(--ink);margin-bottom:4px;text-wrap:pretty}
+.s-what{font-family:var(--mono);font-size:11px;color:var(--c);margin-bottom:6px}
+.s-why{font-size:12px;line-height:1.4;text-wrap:pretty}
+.x-more{margin-top:10px;font-size:13px}
+.legend{display:grid;gap:8px;margin-top:12px;max-width:72ch}
+.lg{border-left:3px solid var(--c);padding:4px 0 4px 12px;font-size:14px;color:var(--mute);text-wrap:pretty}
+.lg b{color:var(--ink)}
+.foot p{max-width:72ch}
+.stamp.melt{border-color:#ff3b3b;color:#ff3b3b}
+.flychar[data-state="melt"]{transform:translate(-20%,30%) scale(1.15)}
+.flychar[data-state="melt"] .fly{animation:spin .5s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
