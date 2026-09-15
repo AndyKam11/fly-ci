@@ -68,13 +68,13 @@ function qmul(a, b) {
 function baseState() {
   return {
     dimensions: { x: [1.6e-8, 'm'], y: [1.6e-8, 'm'], z: [4e-8, 'm'] },
-    position: [34000, 19000, 3000], projectionScale: 50000, projectionOrientation: Q0,
+    position: [34000, 19000, 3000], projectionScale: 40000, projectionOrientation: Q0,
     showAxisLines: false, showDefaultAnnotations: false, showScaleBar: false, showSlices: false,
     projectionBackgroundColor: '#07070c', layout: '3d',
     // neurons first: the viewer takes its voxel grid (16 nm) from the first layer; the brain mesh is 4096 nm
     layers: [
       { type: 'segmentation', source: SRC_NEURONS, name: 'neurons', segments: [], segmentColors: {}, pick: false, selectedAlpha: 0 },
-      { type: 'segmentation', source: SRC_BRAIN, name: 'brain', segments: ['1'], segmentColors: { '1': '#7d8aa6' }, objectAlpha: 0.07, pick: false, selectedAlpha: 0 },
+      { type: 'segmentation', source: SRC_BRAIN, name: 'brain', segments: ['1'], segmentColors: { '1': '#7d8aa6' }, objectAlpha: 0.11, pick: false, selectedAlpha: 0 },
     ],
   };
 }
@@ -102,7 +102,8 @@ function tickOrbit() {
 function initViewer() {
   const v = V();
   if (!v || !v.state) { setTimeout(initViewer, 150); return; }
-  v.state.restoreState(baseState());
+  const st = baseState(); if (ng.clientWidth < 600) st.projectionScale = 64000;   // phones: keep the whole brain in frame
+  v.state.restoreState(st);
   try {
     const d = ng.contentWindow.document;
     d.addEventListener('pointerdown', () => { orbitPausedUntil = Date.now() + 15000; }, true);
@@ -111,6 +112,12 @@ function initViewer() {
   setInterval(tickOrbit, 40);
 }
 ng.addEventListener('load', initViewer);
+if (location.search.includes('og=1')) {                      // share-image mode
+  document.body.classList.add('og');
+  const st = document.querySelector('.stage');
+  st.insertAdjacentHTML('beforeend', '<div class="ogmark">BRAIN <span>ROT</span></div><div class="ogtag">A real fruit fly brain rates your LinkedIn post.<br><b>The worse the post, the more it loves it.</b></div>');
+  setTimeout(() => { document.getElementById('sample').click(); document.getElementById('feedbox').requestSubmit(); }, 4000);
+}
 
 // ---------- the fly ----------
 const flychar = document.getElementById('flychar'), bubble = document.getElementById('bubble'), fx = document.getElementById('fx');
