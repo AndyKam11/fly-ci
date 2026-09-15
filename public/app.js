@@ -56,12 +56,12 @@ function fnv(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h
 
 // ---------- verdicts: mn9 Hz → [title, fly state, bubble] ----------
 function verdictFor(mn9) {
-  if (mn9 === 0)  return ['Zero rot. The fly walked away. Too much substance.',          'dead',  'ew. substance.'];
-  if (mn9 < 10)   return ['Barely rotten. The fly sniffed it and left.',                  'gone',  'meh.'];
+  if (mn9 === 0)  return ['Zero rot. Not a shitpost. The fly walked away.',              'dead',  'ew. substance.'];
+  if (mn9 < 10)   return ['Barely rotten. The fly sniffed it and left.',                  'gone',  'meh. not shitty enough.'];
   if (mn9 < 25)   return ['Mildly rotten. A polite nibble.',                              'meh',   'hm. a little sugar.'];
   if (mn9 < 45)   return ['Rotten. Proboscis extended.',                                  'love',  'ooh. SUGAR.'];
-  if (mn9 < 65)   return ['Very rotten. The fly is feasting.',                            'love',  'NOM NOM NOM'];
-  return              ['CERTIFIED BRAIN ROT. The fly is licking the screen.',            'love',  'SUGARRRR 🤤'];
+  if (mn9 < 65)   return ['Very rotten. The fly is feasting on this shitpost.',           'love',  'NOM NOM NOM'];
+  return              ['CERTIFIED SHITPOST. The fly is licking the screen.',              'love',  'SUGARRRR 🤤'];
 }
 const rotScore = mn9 => Math.min(100, Math.round(mn9 * 1.25));
 
@@ -124,7 +124,7 @@ ng.addEventListener('load', initViewer);
 if (location.search.includes('og=1')) {                      // share-image mode
   document.body.classList.add('og');
   const st = document.querySelector('.stage');
-  st.insertAdjacentHTML('beforeend', '<div class="ogmark">BRAIN <span>ROT</span></div><div class="ogtag">A real fruit fly brain rates your LinkedIn post.<br><b>The worse the post, the more it loves it.</b></div>');
+  st.insertAdjacentHTML('beforeend', '<div class="ogmark">BRAIN <span>ROT</span></div><div class="ogtag">A real fruit fly brain rates your LinkedIn post.<br><b>The shittier the post, the more it loves it.</b></div>');
   setTimeout(() => { document.getElementById('sample').click(); document.getElementById('feedbox').requestSubmit(); }, 4000);
 }
 
@@ -149,7 +149,7 @@ const $ = id => document.getElementById(id);
 const post = $('post'), go = $('go'), phase = $('phase'), dot = document.querySelector('.dot'), meter = $('meterfill');
 let RUNS = null, busy = false;
 fetch('runs.json').then(r => r.json()).then(r => { RUNS = r; }).catch(() => { phase.textContent = 'could not load the brain'; });
-fetch('/api/rate').then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} posts fed to the fly so far`; }).catch(() => {});
+fetch('/api/rate').then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} shitposts fed to the fly so far`; }).catch(() => {});
 
 const SAMPLES = [
   `I got rejected by 47 investors.\n\nThen one said yes.\n\nHere's what I learned about resilience 👇\n\n→ Rejection is redirection.\n→ Your network is your net worth.\n→ Consistency > talent. Every. Single. Time.\n\n3 years ago I was sleeping on a couch. Today we're a team of 12.\n\nNot because I'm special. Because I didn't quit.\n\nLet that sink in.\n\nHumbled to announce we just closed our Series A 🚀\n\nAgree? Repost ♻️ to help someone who needs this today.\n\n#founders #startups #mindset #AI`,
@@ -166,20 +166,13 @@ function softReset() {
   $('stamp').hidden = true; $('verdict').hidden = true;
   fly('idle'); setSegments([]); phase.textContent = '139,255 neurons · idle'; dot.classList.remove('live'); meter.style.transform = 'scaleX(0)';
 }
-post.addEventListener('input', () => { if (!busy && !$('stamp').hidden) softReset(); });
+post.addEventListener('input', () => { if (!busy && !$('stamp').hidden) softReset(); preload(); });
+$('sample').addEventListener('click', preload);
 $('again').addEventListener('click', () => {
   softReset(); post.value = ''; post.focus(); window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-const hex = (a, b, t) => '#' + [0, 1, 2].map(i => Math.round(a[i] + (b[i] - a[i]) * t).toString(16).padStart(2, '0')).join('');
-
-async function feed(e) {
-  if (e) e.preventDefault();
-  const text = post.value.trim();
-  if (!text) { post.focus(); return; }
-  if (busy || !RUNS || !neuronsLayer()) return;
-  busy = true; go.disabled = true; $('verdict').hidden = true; $('stamp').hidden = true;
+function pickRun(text) {
   const bait = scoreBait(text);
   const rate = rateFor(bait.score);
   // real runs at this sugar level, middle half by MN9 rate: the fly is noisy, the outliers are not the joke
@@ -188,12 +181,73 @@ async function feed(e) {
   const run = bucket[fnv(text.toLowerCase().replace(/\s+/g, ' ')) % bucket.length];
   const seq = run.seq.slice().sort((a, b) => a[0] - b[0]);
   const all = [...new Set([...run.stim, ...seq.map(s => s[1]), ...(run.mn9 > 0 ? [MN9] : [])])];
+  return { bait, rate, run, seq, all };
+}
+// preload: while the post is being typed, quietly stream the meshes of the run it will get
+let preloadTimer = null;
+function preload() {
+  clearTimeout(preloadTimer);
+  preloadTimer = setTimeout(() => {
+    const text = post.value.trim();
+    if (!text || busy || !RUNS || !neuronsLayer()) return;
+    const { all } = pickRun(text);
+    const colors = {}; all.forEach(id => colors[id] = DIM);
+    setColors(colors); setSegments(all);
+  }, 400);
+}
+const isLink = t => /https?:\/\/|\blinkedin\.com\//i.test(t) && t.split(/\s+/).length < 25;
+
+// ---------- fly sounds: synthesized, nothing to download ----------
+let AC = null;
+function audio() { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) {} return AC; }
+let buzzNodes = null;
+function buzz(on) {
+  const ac = audio(); if (!ac) return;
+  if (!on) { if (buzzNodes) { const { g } = buzzNodes; g.gain.setTargetAtTime(0, ac.currentTime, .08); setTimeout(() => buzzNodes && buzzNodes.stop(), 400); buzzNodes = null; } return; }
+  if (buzzNodes) return;
+  const g = ac.createGain(); g.gain.value = 0; g.connect(ac.destination);
+  const o1 = ac.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 190;
+  const o2 = ac.createOscillator(); o2.type = 'square'; o2.frequency.value = 383;
+  const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; f.Q.value = 2;
+  const lfo = ac.createOscillator(); lfo.frequency.value = 7; const lg = ac.createGain(); lg.gain.value = 22; lfo.connect(lg); lg.connect(o1.frequency);
+  const lfo2 = ac.createOscillator(); lfo2.frequency.value = 0.6; const lg2 = ac.createGain(); lg2.gain.value = 300; lfo2.connect(lg2); lg2.connect(f.frequency);
+  const o2g = ac.createGain(); o2g.gain.value = .25; o2.connect(o2g); o2g.connect(f);
+  o1.connect(f); f.connect(g);
+  [o1, o2, lfo, lfo2].forEach(o => o.start());
+  g.gain.setTargetAtTime(.06, ac.currentTime, .15);
+  buzzNodes = { g, stop: () => [o1, o2, lfo, lfo2].forEach(o => { try { o.stop(); } catch (e) {} }) };
+}
+function blip(freq, dur = .12, type = 'sine', vol = .12) {
+  const ac = audio(); if (!ac) return;
+  const o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.value = freq;
+  g.gain.value = 0; o.connect(g); g.connect(ac.destination); o.start();
+  g.gain.linearRampToValueAtTime(vol, ac.currentTime + .01); g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + dur); o.stop(ac.currentTime + dur + .05);
+}
+const sfx = {
+  spike: () => blip(1200 + Math.random() * 1400, .05, 'square', .025),
+  nom: async () => { for (const f of [330, 392, 440, 523, 659, 784]) { blip(f, .14, 'triangle', .14); await sleep(90); } },
+  ew: async () => { for (const f of [392, 349, 311, 262, 196]) { blip(f, .22, 'sawtooth', .07); await sleep(150); } },
+  stamp: () => { blip(90, .18, 'square', .18); blip(60, .3, 'sine', .25); },
+};
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const hex = (a, b, t) => '#' + [0, 1, 2].map(i => Math.round(a[i] + (b[i] - a[i]) * t).toString(16).padStart(2, '0')).join('');
+
+async function feed(e) {
+  if (e) e.preventDefault();
+  const text = post.value.trim();
+  if (!text) { post.focus(); return; }
+  if (isLink(text)) { fly('idle', "that's a link. the fly can't click. paste the text."); post.focus(); return; }
+  if (busy || !RUNS || !neuronsLayer()) return;
+  audio();
+  busy = true; go.disabled = true; $('verdict').hidden = true; $('stamp').hidden = true;
+  const { bait, rate, run, seq, all } = pickRun(text);
   const colors = {}; all.forEach(id => colors[id] = DIM);
 
   $('feedbox').classList.add('fed');
   dot.classList.add('live'); meter.style.transform = 'scaleX(0)';
-  phase.textContent = 'landing on your post…';
-  fly('landing');
+  phase.textContent = 'landing on your shitpost…';
+  fly('landing'); buzz(true);
   setColors(colors); setSegments(all);                       // meshes start streaming, nearly invisible
   await sleep(1300);
 
@@ -206,7 +260,7 @@ async function feed(e) {
   await sleep(300);
 
   phase.textContent = 'signal propagating through 139,255 neurons…';
-  fly('watching');
+  fly('watching'); buzz(false);
   const DUR = 6000, t0 = performance.now(); let i = 0, lit = new Set();
   while (i < seq.length) {
     const ms = Math.min(1000, (performance.now() - t0) / DUR * 1000);
@@ -216,7 +270,7 @@ async function feed(e) {
       if (!run.stim.includes(id) && id !== MN9) { c[id] = hex(LIT_A, LIT_B, i / seq.length); lit.add(id); }
       i++;
     }
-    if (Object.keys(c).length) setColors(c);
+    if (Object.keys(c).length) { setColors(c); sfx.spike(); }
     meter.style.transform = `scaleX(${ms / 1000})`;
     phase.textContent = `${lit.size} neurons lit · ${Math.round(ms)} ms of brain time`;
     await sleep(90);
@@ -231,18 +285,19 @@ async function feed(e) {
     phase.textContent = 'no proboscis extension. the fly is unmoved.';
   }
   fly(state, say);
-  if (state === 'love') burst(['🍬', '🍭', '💛', '🍯'], 12);
-  if (state === 'dead') burst(['💀'], 3);
+  if (state === 'love') { burst(['🍬', '🍭', '💛', '🍯'], 12); sfx.nom(); }
+  else if (state === 'dead' || state === 'gone') sfx.ew();
+  else buzz(true), setTimeout(() => buzz(false), 900);
 
   // ---------- verdict ----------
   const rot = rotScore(run.mn9), pct = (run.active / N_NEURONS * 100).toFixed(2);
-  $('score').textContent = rot; $('stamp').classList.toggle('low', rot < 30); $('stamp').hidden = false;
+  $('score').textContent = rot; $('stamp').classList.toggle('low', rot < 30); $('stamp').hidden = false; sfx.stamp();
   $('v-title').textContent = title;
   const tasted = bait.hits.length ? bait.hits.slice(0, 5).map(h => h.label + (h.n > 1 ? ' ×' + h.n : '')).join(', ') : 'no sugar at all';
   const nm = (run.named || []).slice(0, 6).join(', ');
   $('tele').innerHTML = `MN9 <em>${run.mn9} Hz</em> · <em>${pct}%</em> of the brain lit up · ${run.spikes.toLocaleString()} spikes in 1 s · sugar ${rate} Hz<br>tasted: ${tasted}${nm ? `<br>reviewed by neurons ${nm}` : ''}`;
   const site = location.origin + location.pathname;
-  const copyText = `🪰 BRAIN ROT: ${rot}% — ${title}\n\nI fed my LinkedIn post to a simulated fruit fly brain (139,255 real neurons). The tongue motor neuron fired at ${run.mn9} Hz. The worse the post, the more the fly loves it.\n\n${site}`;
+  const copyText = `🪰 BRAIN ROT: ${rot}% — ${title}\n\nI fed my LinkedIn post to a simulated fruit fly brain (139,255 real neurons). The tongue motor neuron fired at ${run.mn9} Hz. Flies know a shitpost when they taste one.\n\n${site}`;
   $('copy').onclick = async () => { try { await navigator.clipboard.writeText(copyText); $('copy').textContent = 'Copied!'; setTimeout(() => $('copy').textContent = 'Copy verdict', 1500); } catch (e) { prompt('Copy this:', copyText); } };
   $('share').href = 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(site);
   const ngState = { layers: [{ type: 'segmentation', source: SRC_NEURONS, segments: all, segmentColors: colors, name: 'neurons that judged your post' },
@@ -253,9 +308,9 @@ async function feed(e) {
 
   fetch('/api/rate', { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ post: text, bait_score: bait.score, bait: bait.hits.map(h => h.label), rate, run: run.k, mn9: run.mn9, fly_score: rot }) })
-    .then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} posts fed to the fly so far`; }).catch(() => {});
+    .then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} shitposts fed to the fly so far`; }).catch(() => {});
 
-  busy = false; go.disabled = false; go.textContent = 'Feed it another';
+  busy = false; go.disabled = false; go.textContent = 'Feed it another shitpost';
   $('feedbox').classList.remove('fed');
 }
 $('feedbox').addEventListener('submit', feed);
