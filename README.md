@@ -20,6 +20,6 @@ PYTHONPATH=. .venv/bin/python prep_runs.py         # → ../flyfluencer/public/r
 
 **Local dev**: `cd public && python3 -m http.server 8787` → http://localhost:8787 (the API is skipped locally).
 
-**Deploy**: Vercel, no build step (`npx vercel --prod`). Env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`. Run `supabase.sql` once in the Supabase SQL editor. Live: https://brainrot-posts.vercel.app
+**Deploy**: Vercel, no build step (`npx vercel --prod`). Env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`. Run `supabase.sql` once in the Supabase SQL editor. Live: https://brainrotposts.com
 
 **Share image**: open `/?og=1`, wait for the run, screenshot the 1200×630 stage → `public/og.png`.
