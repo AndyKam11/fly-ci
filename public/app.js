@@ -42,7 +42,7 @@ function scoreBait(text) {
   hits.sort((a, b) => b.pts - a.pts);
   return { score: Math.min(100, total), hits };
 }
-const rateFor = s => RATES[s < 8 ? 0 : s < 20 ? 1 : s < 35 ? 2 : s < 50 ? 3 : s < 70 ? 4 : 5];
+const rateFor = s => RATES[s < 8 ? 0 : s < 25 ? 1 : s < 40 ? 2 : s < 55 ? 3 : s < 75 ? 4 : 5];
 function fnv(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h; }
 
 // ---------- verdicts: mn9 Hz → [title, fly state, bubble] ----------
@@ -163,7 +163,9 @@ async function feed(e) {
   busy = true; go.disabled = true; $('verdict').hidden = true; $('stamp').hidden = true;
   const bait = scoreBait(text);
   const rate = rateFor(bait.score);
-  const bucket = RUNS.filter(r => r.rate === rate);
+  // real runs at this sugar level, middle half by MN9 rate: the fly is noisy, the outliers are not the joke
+  const sorted = RUNS.filter(r => r.rate === rate).sort((a, b) => a.mn9 - b.mn9);
+  const bucket = sorted.slice(Math.floor(sorted.length * .25), Math.ceil(sorted.length * .75));
   const run = bucket[fnv(text.toLowerCase().replace(/\s+/g, ' ')) % bucket.length];
   const seq = run.seq.slice().sort((a, b) => a[0] - b[0]);
   const all = [...new Set([...run.stim, ...seq.map(s => s[1]), ...(run.mn9 > 0 ? [MN9] : [])])];

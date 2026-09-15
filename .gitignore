@@ -1,3 +1,4 @@
 .vercel
 ng.tgz
 node_modules
+.claude
