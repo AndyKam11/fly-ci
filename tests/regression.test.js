@@ -407,3 +407,14 @@ test('five senses do not lift a short post past its length cap', () => {
   const stim = Object.fromEntries(['sugar', 'bitter', 'smell', 'sound', 'sight'].map(ch => [ch, ['neuron']]));
   assert.ok(scoring().scoreRun({ n_active: 4000, mn9: 100, stim }, 'Humbled to announce my incredible journey. Agree? Delve into this seamless tapestry.') <= 25);
 });
+
+
+test('the revised launch post completes the game even with a quiet biological response', async () => {
+  const s = scoring();
+  const text = fs.readFileSync(new URL('./fixtures/revised-launch.txt', import.meta.url), 'utf8');
+  assert.equal((await s.sampleSenses(text)).length, 5);
+  assert.equal(await s.evaluate(text), 100);
+  const stim = Object.fromEntries(['sugar', 'bitter', 'smell', 'sound', 'sight'].map(ch => [ch, ['neuron']]));
+  assert.equal(s.scoreRun({ n_active: 654, mn9: 0, stim }, text), 100);
+  assert.ok(s.scoreRun({ n_active: 654, mn9: 0, stim }, 'Delve. Agree? 42 🤩 SHOUT!!!') < 100);
+});

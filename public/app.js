@@ -122,7 +122,10 @@ function rotScore(run, text) {
   const lengthCap = sensesCount === 5 && effectiveWords >= 100 ? 100 : effectiveWords < 25 ? 25 : effectiveWords < 60 ? 40 : effectiveWords < 100 ? 65 : effectiveWords < 140 ? 85 : effectiveWords < 180 ? 95 : 100;
   const patterns = new Set([...hits.sugar, ...hits.smell].map(h => h.label)).size;
   const patternCap = Math.min(100, 20 + patterns * 16);
-  const response = run.n_active > MELTDOWN ? 100 : Math.min(100, Math.round(run.mn9 * 1.25));
+  // Completing a developed, varied five-sense post is a game achievement.
+  // Its score must not collapse when bitter suppresses the simulated tongue.
+  const response = sensesCount === 5 && effectiveWords >= 100 && patterns >= 5
+    ? 100 : run.n_active > MELTDOWN ? 100 : Math.min(100, Math.round(run.mn9 * 1.25));
   const sensesCap = [0, 65, 79, 89, 95, 100][sensesCount];
   return Math.min(response, lengthCap, patternCap, sensesCap);
 }
@@ -231,7 +234,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const sfx = {
   spike: () => blip(1200 + Math.random() * 1400, .05, 'square', .025),
   sensor: (i) => blip(440 * Math.pow(1.26, i), .1, 'triangle', .08),
-  nom: async () => { for (const f of [330, 392, 440, 523, 659, 784]) { blip(f, .14, 'triangle', .14); await sleep(90); } },
+  nom: async () => { for (const f of [330, 392, 440, 523, 659, 784]) { blip(f, .14, 'triangle', .14); await sleep(40); } },
   ew: async () => { for (const f of [392, 349, 311, 262, 196]) { blip(f, .22, 'sawtooth', .07); await sleep(150); } },
   melt: async () => { for (let i = 0; i < 12; i++) { blip(200 + Math.random() * 1800, .12, 'sawtooth', .09); await sleep(70); } },
   stamp: () => { blip(90, .18, 'square', .18); blip(60, .3, 'sine', .25); },
@@ -339,7 +342,7 @@ async function feed(e) {
   $('feedbox').classList.add('fed'); dot.classList.add('live'); meter.style.transform = 'scaleX(0)';
   phase.textContent = 'landing on your post…'; fly('landing'); buzz(true);
   setColors(colors); setSegments(all);                       // meshes start streaming, nearly invisible
-  await sleep(1300);
+  await sleep(350);
 
   // the senses fire one by one, each in its own colour
   const active = Object.keys(CH).filter(ch => levels[ch] > 0 && run.stim[ch] && run.stim[ch].length);
@@ -347,8 +350,7 @@ async function feed(e) {
   for (const [i, ch] of active.entries()) {
     const lvl = ch === 'sugar' ? `${SUGAR_L[levels.sugar]} Hz` : ch === 'bitter' ? `${BITTER_L[levels.bitter]} Hz` : ch === 'smell' ? ['', 'a whiff', 'a stench'][levels.smell] : 'on';
     phase.textContent = `${CH[ch].icon} ${CH[ch].name.toLowerCase()} · ${lvl}`; sfx.sensor(i);
-    for (let k = 0; k < 3; k++) { const c = {}; run.stim[ch].forEach(id => c[id] = k % 2 ? DIM : CH[ch].c); setColors(c); await sleep(170); }
-    const c = {}; run.stim[ch].forEach(id => c[id] = CH[ch].c); setColors(c); await sleep(250);
+    const c = {}; run.stim[ch].forEach(id => c[id] = CH[ch].c); setColors(c); await sleep(180);
   }
 
   phase.textContent = melt ? 'signal propagating… uncontrollably' : 'signal propagating through 139,255 neurons…';
@@ -356,21 +358,21 @@ async function feed(e) {
   const stimSet = new Set(Object.values(run.stim).flat());
   const used = [...new Set(seq.map(x => x[2]))].filter(k => ATTR[k]);
   $('key').innerHTML = used.map(k => `<span style="--c:${ATTR[k]}">${ATTR_NAME[k]}</span>`).join(''); $('key').hidden = false;
-  const DUR = melt ? 4500 : 6000, t0 = performance.now(); let i = 0, lit = new Set();
+  const DUR = 2200, t0 = performance.now(); let i = 0, lit = new Set();
   while (i < seq.length) {
     const ms = Math.min(1000, (performance.now() - t0) / DUR * 1000); const c = {};
     while (i < seq.length && seq[i][0] <= ms) { const [, id, k] = seq[i]; if (!stimSet.has(id) && id !== MN9) { c[id] = ATTR[k] || ATTR['?']; lit.add(id); } i++; }
     if (Object.keys(c).length) { setColors(c); sfx.spike(); }
     meter.style.transform = `scaleX(${ms / 1000})`;
     phase.textContent = `${melt ? run.n_active.toLocaleString() + ' neurons firing' : lit.size + ' neurons lit'} · ${Math.round(ms)} ms of brain time`;
-    await sleep(90);
+    await sleep(40);
   }
   meter.style.transform = 'scaleX(1)';
   const rot = rotScore(run, text);
   const [title, state, say] = verdictFor(run, rot);
   if (run.mn9 > 0 && !melt) {
     phase.textContent = `PROBOSCIS EXTENSION · MN9 firing at ${run.mn9} Hz`;
-    for (let k = 0; k < 4; k++) { setColors({ [MN9]: k % 2 ? '#ffe9a8' : WHITE }); await sleep(180); } setColors({ [MN9]: WHITE });
+    for (let k = 0; k < 2; k++) { setColors({ [MN9]: k % 2 ? '#ffe9a8' : WHITE }); await sleep(120); } setColors({ [MN9]: WHITE });
   } else phase.textContent = melt ? `RUNAWAY ACTIVITY · ${run.n_active.toLocaleString()} neurons (${(run.n_active / N_NEURONS * 100).toFixed(1)}% of the brain)` : 'no proboscis extension. the fly is unmoved.';
   fly(state, say);
   if (state === 'love') { burst(['🍬', '🍭', '💛', '🍯'], 12); sfx.nom(); }
@@ -416,7 +418,7 @@ async function feed(e) {
       if (d?.ok && d.id && d.token) { publication = { id: d.id, token: d.token }; imageResult.receipt = { ...publication }; $('publish').disabled = false; $('share').disabled = false; }
       else $('publish-status').textContent = 'Could not save this result. Feed the fly again to submit it.';
       if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} posts fed to the fly so far`;
-      if (d && d.percentile != null && d.count > 20) $('pct').textContent = rot === 0 ? `Less rotten than ${100 - d.percentile}% of posts fed to the fly.` : `More rotten than ${d.percentile}% of posts fed to the fly.`;
+      if (d && d.percentile != null && d.count > 20) $('pct').textContent = `Submission rank: above ${d.percentile}% of posts.`;
     }).catch(() => { if (version === resultVersion) $('publish-status').textContent = 'Could not save this result. Feed the fly again to submit it.'; });
   busy = false; go.disabled = false; $('sample').disabled = false; post.readOnly = false; awaitingNew = true; go.textContent = 'Feed it another'; $('feedbox').classList.remove('fed'); orbitSpeed = 0.004;
 }
