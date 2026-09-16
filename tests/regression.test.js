@@ -10,14 +10,14 @@ import top from '../api/top.js';
 const source = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
 function scoring() {
   const context = vm.createContext({ fetch: async path => ({ json: async () => JSON.parse(fs.readFileSync(new URL('../public/' + path, import.meta.url), 'utf8')) }) });
-  vm.runInContext(source.slice(source.indexOf('const MN9'), source.indexOf('// ---------- neuroglancer')) + source.slice(source.indexOf('const SAMPLES'), source.indexOf('let sampleIdx')) + ';globalThis.samples = SAMPLES; globalThis.evaluate = async text => rotScore((await pickRun(text)).run, text);', context);
+  vm.runInContext(source.slice(source.indexOf('const MN9'), source.indexOf('// ---------- neuroglancer')) + source.slice(source.indexOf('const SAMPLES'), source.indexOf('let sampleIdx')) + ';globalThis.sampleSenses = async text => { const { run } = await pickRun(text); return Object.keys(run.stim).filter(ch => run.stim[ch].length); }; globalThis.samples = SAMPLES; globalThis.evaluate = async text => rotScore((await pickRun(text)).run, text);', context);
   return context;
 }
 test('every sample scores below 100 with the real simulation data', async () => {
   const s = scoring();
   for (const text of s.samples) {
     const result = await s.evaluate(text);
-    assert.ok(result >= 0 && result < 100, `${text.slice(0, 40)} scored ${result}`);
+    assert.ok(result >= 30 && result < 90, `${text.slice(0, 40)} scored ${result}`);
   }
 });
 const SLOP = `Humbled and grateful to announce a pivotal milestone in my incredible journey. Three years ago I got rejected by every investor in town. Today our visionary community is transforming the landscape through seamless innovation and authentic leadership. Let that sink in.
@@ -135,7 +135,7 @@ function ui() {
   return { context, element, requests };
 }
 const settle = () => new Promise(resolve => setImmediate(resolve));
-test('result prompts track actual senses; editing keeps the post and resets consent', async () => {
+test('result prompts track actual senses; editing preserves the last result', async () => {
   const { context, element, requests } = ui();
   element('post').value = 'I got rejected. Then I tried again. Agree?';
   await context.feed(); await settle();
@@ -146,7 +146,8 @@ test('result prompts track actual senses; editing keeps the post and resets cons
   assert.match(element('explore-title').textContent, /1\/5 senses/);
   element('experiment').handlers.click();
   assert.equal(element('post').value, 'I got rejected. Then I tried again. Agree?');
-  assert.equal(element('publish').disabled, true);
+  assert.equal(element('publish').disabled, false);
+  assert.equal(element('verdict').hidden, false);
   element('post').value += ' 🎉🎉';
   await context.feed(); await settle();
   assert.match(element('explore-title').textContent, /2\/5 senses/);
@@ -156,11 +157,11 @@ test('result prompts track actual senses; editing keeps the post and resets cons
   assert.equal(element('publish').textContent, 'Added to Hall of Rot');
   assert.equal(element('publish').disabled, true);
 });
-test('a delayed save response cannot enable publishing a result after editing', async () => {
+test('a delayed save response cannot enable publishing after starting a new post', async () => {
   const { context, element } = ui();
   element('post').value = 'Today I fixed a bug.';
   await context.feed();
-  element('experiment').handlers.click();
+  element('again').handlers.click();
   await settle();
   assert.equal(element('publish').disabled, true);
 });
@@ -177,4 +178,57 @@ test('sense count belongs to the current post and buttons explain inactive sense
   const sight = element('sense-progress').children[4];
   sight.handlers.focus();
   assert.match(element('experiment-hint').textContent, /Not activated.*two emojis/);
+});
+
+
+test('each sense example activates its intended input and the previous draft can be restored', async () => {
+  for (const [index, channel] of ['sugar', 'bitter', 'smell', 'sound', 'sight'].entries()) {
+    const { context, element } = ui();
+    const original = 'I got rejected. Then I tried again. Agree?';
+    element('post').value = original;
+    await context.feed(); await settle();
+    const chip = element('sense-progress').children[index];
+    assert.equal(chip.title, undefined, 'No duplicate native tooltip');
+    chip.handlers.click();
+    assert.notEqual(element('post').value, original);
+    assert.equal(element('publish').disabled, false);
+    assert.equal(element('verdict').hidden, false);
+    assert.equal(element('result-context').hidden, false);
+    assert.equal(element('restore-post').hidden, false);
+    await context.feed(); await settle();
+    assert.match(element('sense-progress').children[index].className, /active/, channel);
+    element('restore-post').handlers.click();
+    assert.equal(element('post').value, original);
+    assert.equal(element('restore-post').hidden, true);
+  }
+});
+
+test('typing preserves the brain verdict and sharing receipt until resubmission', async () => {
+  const { context, element, requests } = ui();
+  element('post').value = 'I got rejected. Then I tried again. Agree?';
+  await context.feed(); await settle();
+  const oldScore = element('score').textContent;
+  element('post').value = 'An edited draft';
+  element('post').handlers.input();
+  element('experiment').handlers.click();
+  assert.equal(element('post').value, 'An edited draft');
+  assert.equal(element('stamp').hidden, false);
+  assert.equal(element('verdict').hidden, false);
+  assert.equal(element('score').textContent, oldScore);
+  assert.equal(element('publish').disabled, false);
+  assert.equal(element('result-context').hidden, false);
+  await element('publish').handlers.click();
+  const publication = requests.find(r => r.url === '/api/publish');
+  assert.ok(publication);
+  assert.equal(requests.filter(r => r.url === '/api/rate' && r.opts?.method === 'POST').length, 1);
+  await context.feed(); await settle();
+  assert.equal(element('result-context').hidden, true);
+});
+
+test('sample progression explores two senses, two different senses, then all four', async () => {
+  const s = scoring();
+  const expected = [['sugar', 'sight'], ['smell', 'sound'], ['sugar', 'smell', 'sound', 'sight']];
+  for (let i = 0; i < expected.length; i++) {
+    assert.deepEqual(Array.from(await s.sampleSenses(s.samples[i])).sort(), expected[i].sort());
+  }
 });

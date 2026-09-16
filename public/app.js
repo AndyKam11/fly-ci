@@ -233,24 +233,73 @@ const sfx = {
 const $ = id => document.getElementById(id);
 const post = $('post'), go = $('go'), phase = $('phase'), dot = document.querySelector('.dot'), meter = $('meterfill');
 let busy = false, resultVersion = 0, publication = null;
-let lastText = '';
+let lastText = '', savedDraft = null;
 fetch('/api/rate').then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} shitposts fed to the fly so far`; }).catch(() => {});
 
 const SAMPLES = [
-  `I got rejected. Then I tried again. Agree?`,
-  `Humbled to announce I've updated my LinkedIn profile once again. 🙏\n\nThis journey hasn't been easy. But I couldn't have done it without every single one of you.\n\nHere's to the next chapter 🚀\n\n#grateful #newbeginnings`,
-  `We should delve into this idea.`,
-  `WE DID IT!!! 🎉🎉🎉\n\n1 MILLION USERS!!!\n\nTo everyone who said it couldn't be done: LOOK AT US NOW!!! 🚀🔥💪\n\nLET'S GOOOO!!!`,
-  `We spent six months trying to sell our analytics product to mid-market retailers and closed nothing. The pattern in the lost deals was consistent: the person who wanted the product wasn't the person who owned the budget, and we never got a meeting with the second person.\n\nWhat changed things was boring. We rewrote the first call to end with one question: who else needs to be in the next conversation? Half the time the answer was the CFO. We stopped pitching until they were in the room. Cycle time went from 90 days to 40, and we closed four of the next nine.`,
+  `Humbled to announce I bought a standing desk. 🙏🚀
+
+I used to sit through my problems. Literally. Then a mentor asked me a question that changed everything: what would happen if you stood up for yourself?
+
+Goosebumps.
+
+Today I am grateful for everyone who believed in me before the assembly instructions made sense. Your support carried me through every missing screw and every confusing diagram.
+
+My biggest lesson? Your comfort zone has lumbar support. Your next chapter does not.
+
+This milestone belongs to my incredible network. Never stop believing in your dreams.
+
+Agree? #grateful #leadership`,
+  `ATTENTION EVERYONE!!!
+
+Please appreciate this seamless tapestry of meticulously arranged office stationery.
+
+The pens face north. The stapler sits precisely beside the paper tray.
+
+A single binder clip rests on a folded napkin. It resembles an artifact in a museum.
+
+This is a testament to the transformative potential of everyday objects — a pivotal demonstration of operational excellence.
+
+BEHOLD THE DRAWER!!!
+
+We must delve into the intricate interplay between the mechanical pencil and its surroundings.
+
+Furthermore, the eraser offers a nuanced perspective on the multifaceted nature of mistakes.
+
+The filing cabinet embodies a holistic paradigm. Its labels represent our enduring commitment to alphabetical order.
+
+Ultimately, the desk is an ever-evolving landscape. Please acknowledge the desk.`,
+  `Humbled to announce that I missed my flight today. 🚀🔥
+
+Three years ago, I would have called this a setback. Today, I call it an invitation to redefine my journey.
+
+While everyone rushed toward their gate, I sat with my lukewarm coffee and chose abundance. The departure board wasn't rejecting me. It was redirecting my mindset.
+
+HERE ARE MY TAKEAWAYS!!!
+→ Your boarding pass is not your purpose.
+→ A delayed flight is an opportunity for growth.
+→ Sometimes you lose your seat to find your voice.
+
+I'm grateful for the visionary barista who spelled my name wrong. She reminded me that identity is something we build.
+
+As founders, we must leverage every pivotal moment to unlock transformative resilience. My network deserves this story.
+
+Let that sink in. Agree? Repost to inspire someone. #leadership #mindset`,
 ];
 let sampleIdx = 0;
-$('sample').addEventListener('click', () => { if (busy) return; awaitingNew = false; go.textContent = 'Feed the fly'; post.value = SAMPLES[sampleIdx++ % SAMPLES.length]; softReset(); post.focus(); preload(); });
+$('sample').addEventListener('click', () => { if (busy) return; savedDraft = null; $('restore-post').hidden = true; awaitingNew = false; go.textContent = 'Feed the fly'; post.value = SAMPLES[sampleIdx++ % SAMPLES.length]; prepareEdit(); post.focus(); preload(); });
 function softReset() {
+  $('result-context').hidden = true;
   resultVersion++; publication = null; $('publish').disabled = true;
+  $('v-title').hidden = true;
   $('stamp').hidden = true; $('verdict').hidden = true; $('senses').hidden = true;
   fly('idle'); setSegments([]); phase.textContent = '139,255 neurons · idle'; dot.classList.remove('live'); meter.style.transform = 'scaleX(0)'; orbitSpeed = 0.004; $('key').hidden = true;
 }
-post.addEventListener('input', () => { if (awaitingNew) { awaitingNew = false; go.textContent = 'Feed the fly'; } if (!busy && !$('stamp').hidden) softReset(); preload(); });
+function prepareEdit() {
+  awaitingNew = false; go.textContent = 'Feed the fly';
+  $('result-context').hidden = $('verdict').hidden || post.value.trim() === lastText;
+}
+post.addEventListener('input', () => { if (busy) return; prepareEdit(); preload(); });
 $('again').addEventListener('click', newPost);
 
 // preload: while the post is being typed, quietly stream the meshes of the run it will get
@@ -258,7 +307,7 @@ let preloadTimer = null;
 function preload() {
   clearTimeout(preloadTimer);
   preloadTimer = setTimeout(async () => {
-    const text = post.value.trim(); if (!text || busy || !neuronsLayer()) return;
+    const text = post.value.trim(); if (!text || busy || !$('verdict').hidden || !neuronsLayer()) return;
     try { const { all } = await pickRun(text); const colors = {}; all.forEach(id => colors[id] = DIM); setColors(colors); setSegments(all); } catch (e) {}
   }, 400);
 }
@@ -271,11 +320,11 @@ async function feed(e) {
   if (!text) { post.focus(); return; }
   if (isLink(text)) { fly('idle', "that's a link. the fly can't click. paste the text."); post.focus(); return; }
   if (busy || !neuronsLayer()) return;
-  const version = ++resultVersion; publication = null; lastText = text;
+  const version = ++resultVersion; publication = null; lastText = text; $('result-context').hidden = true;
   $('publish').disabled = true; $('publish').textContent = 'Add to Hall of Rot';
-  $('publish-status').textContent = 'Makes your post public. Optional, every time.';
+  $('publish-status').textContent = 'Hall of Rot makes your post public. Optional, every time.';
   $('sample').disabled = true; post.readOnly = true;
-  audio(); busy = true; go.disabled = true; $('verdict').hidden = true; $('stamp').hidden = true; $('senses').hidden = true;
+  audio(); busy = true; go.disabled = true; $('verdict').hidden = true; $('v-title').hidden = true; $('stamp').hidden = true; $('senses').hidden = true;
   let picked;
   try { picked = await pickRun(text); }
   catch (err) { busy = false; go.disabled = false; $('sample').disabled = false; post.readOnly = false; fly('idle', 'the brain is loading. try again in a sec.'); return; }
@@ -328,7 +377,7 @@ async function feed(e) {
   // ---------- verdict + explainers ----------
   const pct = (run.n_active / N_NEURONS * 100).toFixed(2);
   $('score').textContent = rot; $('stamp').classList.toggle('low', rot < 30); $('stamp').classList.toggle('melt', melt); $('stamp').hidden = false; sfx.stamp();
-  $('v-title').textContent = title;
+  $('v-title').textContent = title; $('v-title').hidden = false;
   const regions = (run.regions || []).slice(0, 4).map(([r, n]) => `${n.toLocaleString()} ${r.replace(/_/g, ' ')}`).join(' · ');
   const nm = (run.named || []).slice(0, 6).join(', ');
   $('tele').innerHTML = `MN9 <em>${run.mn9} Hz</em> · <em>${pct}%</em> of the brain lit up · ${run.n_spikes.toLocaleString()} spikes in 1 s<br>${regions}${nm ? `<br>reviewed by neurons ${nm}` : ''}`;
@@ -355,6 +404,7 @@ async function feed(e) {
   $('ng-link').href = 'https://neuroglancer-demo.appspot.com/#!' + encodeURIComponent(JSON.stringify(ngState));
   $('verdict').hidden = false;
   showExperiment(run);
+  if (window.matchMedia('(max-width: 720px)').matches) $('verdict').scrollIntoView({ block: 'start', behavior: 'smooth' });
 
   fetch('/api/rate', { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ post: text, bait_score: pts.sugar, bait: Object.values(hits).flat().map(h => h.label), rate: SUGAR_L[levels.sugar], run: run.k, mn9: run.mn9, fly_score: rot,
@@ -369,7 +419,7 @@ async function feed(e) {
   busy = false; go.disabled = false; $('sample').disabled = false; post.readOnly = false; awaitingNew = true; go.textContent = 'Feed it another'; $('feedbox').classList.remove('fed'); orbitSpeed = 0.004;
 }
 let awaitingNew = false;
-function newPost() { awaitingNew = false; go.textContent = 'Feed the fly'; softReset(); post.value = ''; post.focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function newPost() { savedDraft = null; $('restore-post').hidden = true; awaitingNew = false; go.textContent = 'Feed the fly'; softReset(); post.value = ''; post.focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 $('feedbox').addEventListener('submit', feed);
 $('publish').addEventListener('click', async () => {
   if (!publication) return;
@@ -398,6 +448,25 @@ const EXPERIMENTS = {
   sugar: 'Try “Humbled to announce” or “Agree?”. Engagement bait stimulates sugar-sensing neurons.',
   bitter: 'Try a factual paragraph with numbers and reasoning. Enough substance activates bitter inputs and can suppress the tongue response.',
 };
+const SENSE_EXAMPLES = {
+  sugar: 'Humbled to announce my new chapter. Grateful for this incredible journey. Agree?',
+  sight: 'A tiny update from my desk today. ☕🌻',
+  sound: 'THE PRINTER WORKS!!!',
+  smell: 'We should delve into this idea.',
+  bitter: 'We measured API latency across 200 calls because the SQL query was slow. However, the index reduced execution time from 90 ms to 40 ms. In practice, the onboarding flow still fails because the termination clause requires a second review. Instead of adding servers, we checked the Postgres query plan and removed a redundant join. The problem was a missing index, although we initially suspected the network.',
+};
+function loadSenseExample(ch) {
+  if (busy) return;
+  if (savedDraft === null) savedDraft = post.value;
+  post.value = SENSE_EXAMPLES[ch]; awaitingNew = false; go.textContent = 'Feed the fly';
+  prepareEdit(); $('restore-post').hidden = false; post.focus(); preload();
+  $('feedbox').scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+$('restore-post').addEventListener('click', () => {
+  if (busy || savedDraft === null) return;
+  post.value = savedDraft; savedDraft = null; $('restore-post').hidden = true;
+  prepareEdit(); post.focus(); preload();
+});
 let activeSenses = new Set();
 let hintQueue = [], hintIndex = 0;
 function renderHint() {
@@ -414,10 +483,10 @@ function showExperiment(run) {
     item.style.setProperty('--c', CH[ch].c);
     item.textContent = `${CH[ch].icon} ${CH[ch].name}${on ? ' ✓' : ''}`;
     const explanation = `${on ? 'Activated in this post. ' : 'Not activated in this post. '}${EXPERIMENTS[ch]}`;
-    item.setAttribute('aria-label', `${CH[ch].name}: ${on ? 'activated' : 'not activated'}. Show explanation`);
+    item.setAttribute('aria-label', `${CH[ch].name}: ${on ? 'activated' : 'not activated'}. Load an example`);
     item.setAttribute('aria-describedby', 'experiment-hint');
-    item.title = explanation;
-    for (const event of ['mouseenter', 'focus', 'click']) item.addEventListener(event, () => { $('experiment-hint').textContent = explanation; });
+    for (const event of ['mouseenter', 'focus']) item.addEventListener(event, () => { $('experiment-hint').textContent = explanation; });
+    item.addEventListener('click', () => loadSenseExample(ch));
     return item;
   }));
   $('explore-title').textContent = `You lit up ${activeSenses.size}/5 senses`;
@@ -426,8 +495,8 @@ function showExperiment(run) {
 }
 $('next-hint').addEventListener('click', () => { hintIndex++; renderHint(); });
 $('experiment').addEventListener('click', () => {
-  post.value = lastText; awaitingNew = false; go.textContent = 'Feed the fly';
-  softReset(); post.focus(); post.setSelectionRange(post.value.length, post.value.length);
+  awaitingNew = false; go.textContent = 'Feed the fly';
+  prepareEdit(); post.focus(); post.setSelectionRange(post.value.length, post.value.length);
   $('feedbox').scrollIntoView({ block: 'center', behavior: 'smooth' });
 });
 
