@@ -282,7 +282,7 @@ This milestone is a testament to the transformative potential of actually openin
 The result was 40 ms instead of 900 ms. Please admire my leadership.`,
 ];
 let sampleIdx = 0;
-$('sample').addEventListener('click', () => { if (busy) return; savedDraft = null; $('restore-post').hidden = true; awaitingNew = false; go.textContent = 'Feed the fly'; post.value = SAMPLES[sampleIdx++ % SAMPLES.length]; prepareEdit(); post.focus(); preload(); });
+$('sample').addEventListener('click', () => { if (busy) return; savedDraft = null; $('restore-post').hidden = true; awaitingNew = false; go.textContent = 'Feed the fly'; post.value = SAMPLES[sampleIdx++ % SAMPLES.length]; prepareEdit(); post.focus(); post.setSelectionRange(0, 0); post.scrollTop = 0; post.scrollLeft = 0; preload(); });
 function softReset() {
   $('result-context').hidden = true;
   imageResult = null; $('share').disabled = true; $('image-status').textContent = '';
