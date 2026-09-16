@@ -31,7 +31,7 @@ PYTHONPATH=. .venv/bin/python prep_runs.py         # → ../flyfluencer/public/r
 - After scoring, **Light up another sense** shows the simulation's stimulated inputs for that post, prioritizes inactive senses, and preserves the post when the visitor chooses to edit it.
 - Rot scores combine the simulated response with caps for text length, vocabulary variety and the number of bait patterns. A short trigger phrase cannot earn 90–100%; activating more senses does not itself increase the score.
 - Sense buttons explain their input inline on hover/focus and load a tested example on click, with a restore-draft action. Editing preserves the last result and its sharing controls until resubmission.
-- Samples progress through sugar + sight, smell + hearing, then all four, scoring 65%, 52% and 85%. They use the ordinary scoring rules. `npm test` checks each against the actual simulation files and verifies that original posts can still score 100. API and interaction tests use mocks; they do not publish real posts.
+- Samples progress through sugar + sight, smell + hearing, then sugar + bitter + smell + sight, scoring 65%, 52% and 84%. They use the ordinary scoring rules. `npm test` checks each against the actual simulation files and verifies that original posts can still score 100. API and interaction tests use mocks; they do not publish real posts.
 
 ### Release order
 

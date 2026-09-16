@@ -225,9 +225,9 @@ test('typing preserves the brain verdict and sharing receipt until resubmission'
   assert.equal(element('result-context').hidden, true);
 });
 
-test('sample progression explores two senses, two different senses, then all four', async () => {
+test('sample progression explores two senses, two different senses, then four including bitter', async () => {
   const s = scoring();
-  const expected = [['sugar', 'sight'], ['smell', 'sound'], ['sugar', 'smell', 'sound', 'sight']];
+  const expected = [['sugar', 'sight'], ['smell', 'sound'], ['sugar', 'bitter', 'smell', 'sight']];
   for (let i = 0; i < expected.length; i++) {
     assert.deepEqual(Array.from(await s.sampleSenses(s.samples[i])).sort(), expected[i].sort());
   }

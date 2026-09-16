@@ -269,22 +269,17 @@ Furthermore, the eraser offers a nuanced perspective on the multifaceted nature 
 The filing cabinet embodies a holistic paradigm. Its labels represent our enduring commitment to alphabetical order.
 
 Ultimately, the desk is an ever-evolving landscape. Please acknowledge the desk.`,
-  `Humbled to announce that I missed my flight today. 🚀🔥
+  `Humbled to announce that I finally fixed our office Wi-Fi. ☕🚀
 
-Three years ago, I would have called this a setback. Today, I call it an invitation to redefine my journey.
+It took 90 days because we kept blaming the network instead of reading the logs. However, the API latency came from a SQL query that scanned every customer record before returning a single row.
 
-While everyone rushed toward their gate, I sat with my lukewarm coffee and chose abundance. The departure board wasn't rejecting me. It was redirecting my mindset.
+We measured 200 calls because the Postgres index looked correct, although the onboarding flow bypassed it entirely. In practice, the termination clause in our vendor contract made switching providers slower than fixing the query ourselves.
 
-HERE ARE MY TAKEAWAYS!!!
-→ Your boarding pass is not your purpose.
-→ A delayed flight is an opportunity for growth.
-→ Sometimes you lose your seat to find your voice.
+Here is my procedure: check the evidence before ordering another router.
 
-I'm grateful for the visionary barista who spelled my name wrong. She reminded me that identity is something we build.
+This milestone is a testament to the transformative potential of actually opening the documentation. We must delve into the intricate tapestry of database maintenance and leverage every pivotal lesson.
 
-As founders, we must leverage every pivotal moment to unlock transformative resilience. My network deserves this story.
-
-Let that sink in. Agree? Repost to inspire someone. #leadership #mindset`,
+The result was 40 ms instead of 900 ms. Please admire my leadership.`,
 ];
 let sampleIdx = 0;
 $('sample').addEventListener('click', () => { if (busy) return; savedDraft = null; $('restore-post').hidden = true; awaitingNew = false; go.textContent = 'Feed the fly'; post.value = SAMPLES[sampleIdx++ % SAMPLES.length]; prepareEdit(); post.focus(); preload(); });

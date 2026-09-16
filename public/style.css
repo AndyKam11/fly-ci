@@ -215,17 +215,17 @@ body.og .challenge,body.og .hall-section,body.og .brain-caption{display:none}
 .sense-chip:hover,.sense-chip:focus-visible{background:#20202d}
 #experiment-hint{font-size:13px;color:var(--mute);margin:12px 0}
 
-/* Compact header and a side-by-side lab keep the next experiment in view. */
+/* Compact header above the full-width brain. */
 .top{align-items:flex-start;flex-wrap:nowrap;margin-bottom:16px}
 .top nav{align-self:flex-start;margin-left:auto}
 .wordmark{font-size:clamp(40px,5vw,60px)}
 .nav-hall{padding-top:0}
-.lab{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px;align-items:start}
-.workspace{min-width:0}
+.lab{display:flex;flex-direction:column;gap:16px}
+.workspace{min-width:0;width:100%}
 .workspace .tag{font-size:14px;max-width:none}
 .challenge{margin:8px 0 10px}
 .feedbox{margin-top:0}
-.stage{position:sticky;top:16px;height:clamp(360px,64dvh,580px)}
+.stage{position:relative;top:auto;width:100%;height:clamp(400px,62dvh,620px)}
 .stage-verdict{position:absolute;bottom:20px;left:16px;max-width:46%;font-size:14px;font-weight:700;line-height:1.3;color:var(--ink)}
 .verdict{margin-top:12px;scroll-margin-top:12px}
 .verdict-senses{margin:0 0 14px;padding:14px}
@@ -238,10 +238,14 @@ body.og .lab{display:block}body.og .workspace,body.og .stage-verdict{display:non
   .wordmark{font-size:40px}
   .lab{display:flex;flex-direction:column;gap:12px}
   .workspace{width:100%}
-  .stage{position:relative;top:auto;height:280px;min-height:280px}
+  .stage{position:relative;top:auto;height:clamp(340px,52dvh,460px);min-height:340px}
   .stage-verdict{font-size:12px;bottom:14px;left:12px;max-width:44%}
   textarea{height:104px}
 }
 .result-actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 6px}
 .result-actions .btn{flex:1 1 160px}
 #publish-status{margin:0 0 12px;text-align:left}
+
+.wordmark{white-space:nowrap;font-size:clamp(28px,4.5vw,54px)}
+.wordmark span{display:inline-block;margin-left:.18em;transform:none}
+@media(max-width:420px){.wordmark{font-size:27px}.nav-hall{font-size:12px}.top{gap:8px}}
