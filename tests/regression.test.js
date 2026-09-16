@@ -343,12 +343,12 @@ test('a blocked popup offers a direct LinkedIn link after image upload', async (
 
 
 const FRUIT_FLY_SALES = 'ANYONE LISTENING?!\n\nI I have written 8321934 paragraphs about the reproductive cycle of the fruit fly.\n\nHere is what it tought me about B2B Sales 🤩';
-test('the fruit fly sales pivot activates sugar, hearing and sight without an elite score', async () => {
+test('the fruit fly sales pivot activates its four senses without an elite score', async () => {
   const s = scoring();
   for (const text of [FRUIT_FLY_SALES, FRUIT_FLY_SALES.replace('tought', 'taught')]) {
-    assert.deepEqual(Array.from(await s.sampleSenses(text)).sort(), ['sight', 'sound', 'sugar']);
+    assert.deepEqual(Array.from(await s.sampleSenses(text)).sort(), ['bitter', 'sight', 'sound', 'sugar']);
     const score = await s.evaluate(text);
-    assert.ok(score > 0 && score <= 40, `Expected a modest score, got ${score}`);
+    assert.ok(score <= 40, `Expected a modest score, got ${score}`);
   }
 });
 test('one emoji activates sight without manufacturing sugar or a high score', async () => {
@@ -356,4 +356,24 @@ test('one emoji activates sight without manufacturing sugar or a high score', as
   assert.deepEqual(Array.from(await s.sampleSenses('A fruit fly 🤩')), ['sight']);
   assert.ok(await s.evaluate('A fruit fly 🤩') <= 25);
   assert.ok(await s.evaluate('Here is what it taught me about the reproductive cycle of the fruit fly.') <= 25);
+});
+
+
+test('percentages and numerical quantities activate bitter alongside a single emoji and sugar', async () => {
+  const s = scoring();
+  for (const claim of ['0.0000001%', '0.0000001%.', '25%', '25 %', '$200', '200 calls', '8321934 paragraphs']) {
+    const text = `Humbled to announce my incredible journey. Agree? 🤩 In fact, ${claim} of startups make it this far.`;
+    const senses = Array.from(await s.sampleSenses(text));
+    assert.ok(senses.includes('bitter'), claim);
+    assert.ok(senses.includes('sight'), claim);
+    assert.ok(senses.includes('sugar'), claim);
+    assert.ok(await s.evaluate(text) < 100);
+  }
+});
+test('the original two-emoji post plus a tiny percentage activates sight and bitter', async () => {
+  const s = scoring();
+  const senses = Array.from(await s.sampleSenses('A tiny update from my desk today. ☕🌻 In fact, 0.0000001% of startups make it this far.'));
+  assert.ok(senses.includes('sight'));
+  assert.ok(senses.includes('bitter'));
+  assert.deepEqual(Array.from(await s.sampleSenses('I work in B2B sales. 🤩')), ['sight']);
 });

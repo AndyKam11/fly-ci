@@ -44,7 +44,7 @@ const BAIT = [
   { ch: 'sight', label: 'emoji', w: 4, cap: 20, re: /\p{Extended_Pictographic}/gu },
   { ch: 'sight', label: 'bullets', w: 3, cap: 12, re: /^\s*(→|✅|•|▪|-|–|—|\d+[.)])\s+/gmu },
   { ch: 'sight', label: 'arrows & ticks', w: 2, cap: 8, re: /[→↳✓✔︎★☆]/gu },
-  { ch: 'bitter', label: 'numbers with units', w: 3, cap: 12, re: /\b\d[\d,.]*\s?(%|k|m|x|days?|weeks?|months?|years?|hours?|customers?|users?|people|deals?|calls?|emails?|€|\$|usd|eur)\b|[$€£]\s?\d/gi },
+  { ch: 'bitter', label: 'numbers with units', w: 3, cap: 12, re: /\b\d+(?:[.,]\d+)*\s*(?:%|[$€£]|(?:k|m|x|days?|weeks?|months?|years?|hours?|customers?|users?|people|deals?|calls?|emails?|paragraphs?|ms|seconds?|usd|eur)\b)|[$€£]\s*\d+(?:[.,]\d+)*/gi },
   { ch: 'bitter', label: 'reasoning', w: 2, cap: 12, re: /\b(because|however|instead|although|whereas|in practice|turns out|the catch|trade.?off|the problem was|what actually)\b/gi },
   { ch: 'bitter', label: 'specifics', w: 3, cap: 12, re: /\b(postgres|sql|api|q[1-4]|churn|arr|mrr|cac|nps|p&l|gross margin|term sheet|clause|termination|rev share|rfp|soc ?2|gdpr|kubernetes|latency|onboarding flow)\b/gi },
 ];
@@ -71,10 +71,11 @@ function sense(text) {
   pts.sugar += Math.round(30 * Math.min(1, pts.sugar / words));
   for (const k in hits) hits[k].sort((a, b) => b.pts - a.pts);
   const s = pts.sugar, b = pts.bitter;
+  const numericalClaim = hits.bitter.some(hit => hit.label === 'numbers with units');
   const levels = {
     sugar:  s < 1 ? 0 : s < 12 ? 1 : s < 25 ? 2 : s < 40 ? 3 : s < 55 ? 4 : s < 75 ? 5 : 6,
-    // bitter is a hard veto in the model, so substance only counts when it outweighs the sugar
-    bitter: (b < 24 || b < s) ? 0 : b < 40 ? 1 : b < 60 ? 2 : 3,
+    // A numerical claim activates bitter independently of engagement bait.
+    bitter: !numericalClaim && (b < 24 || b < s) ? 0 : b < 40 ? 1 : b < 60 ? 2 : 3,
     smell:  pts.smell < 6 ? 0 : pts.smell < 22 ? 1 : 2,
     sound:  pts.sound >= 6 ? 1 : 0,
     sight:  pts.sight >= 4 ? 1 : 0,
@@ -96,9 +97,12 @@ async function pickRun(text) {
   const L = s.levels, wantMelt = L.smell === 2;
   const match = (r, bitter) => r.levels.bitter === bitter && r.levels.smell === L.smell && r.levels.sound === L.sound && r.levels.sight === L.sight;
   let cands = runs.filter(r => match(r, L.bitter) && ((r.n_active > MELTDOWN) === wantMelt));
-  if (!cands.length) for (const b of [L.bitter - 1, L.bitter + 1, L.bitter - 2, L.bitter + 2]) {    // nearest bitter level with a sane run
-    cands = runs.filter(r => match(r, b) && (r.n_active > MELTDOWN) === wantMelt); if (cands.length) break; }
+  // Preserve the requested senses before preferring a runaway or quiet response.
   if (!cands.length) cands = runs.filter(r => match(r, L.bitter));
+  if (!cands.length) for (const b of [L.bitter - 1, L.bitter + 1, L.bitter - 2, L.bitter + 2]) {
+    if ((b > 0) !== (L.bitter > 0)) continue;
+    cands = runs.filter(r => match(r, b)); if (cands.length) break;
+  }
   const run = cands[fnv(text.toLowerCase().replace(/\s+/g, ' ')) % cands.length];
   const seq = run.seq.slice().sort((a, b) => a[0] - b[0]);
   const stimAll = Object.values(run.stim).flat();
@@ -500,7 +504,7 @@ const EXPERIMENTS = {
   sound: 'Try THREE EXCLAMATION MARKS!!! Shouting stimulates hearing inputs in the antennae.',
   smell: 'Try a word like “delve” or “tapestry”. AI-style language stimulates smell inputs.',
   sugar: 'Try “Humbled to announce” or “Agree?”. Engagement bait stimulates sugar-sensing neurons.',
-  bitter: 'Try a factual paragraph with numbers and reasoning. Enough substance activates bitter inputs and can suppress the tongue response.',
+  bitter: 'Try a percentage like “0.5%” or a quantity like “200 calls”. Numerical claims activate bitter inputs—even alongside engagement bait—and can suppress the tongue response.',
 };
 const SENSE_EXAMPLES = {
   sugar: 'Humbled to announce my new chapter. Grateful for this incredible journey. Agree?',
