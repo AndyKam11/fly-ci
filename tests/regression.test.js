@@ -110,7 +110,7 @@ function ui() {
       style: { setProperty() {} }, classList: { add() {}, remove() {}, toggle() {} },
       addEventListener(event, fn) { this.handlers[event] = fn; },
       replaceChildren(...children) { this.children = children; },
-      setAttribute() {}, appendChild() {}, querySelectorAll() { return []; }, focus() {}, setSelectionRange() {}, scrollIntoView() {},
+      showModal() { this.open = true; }, close() { this.open = false; }, setAttribute() {}, appendChild() {}, querySelectorAll() { return []; }, focus() {}, setSelectionRange() {}, scrollIntoView() {},
     });
     return elements.get(key);
   };
@@ -121,6 +121,7 @@ function ui() {
   const context = vm.createContext({
     document: { getElementById: element, querySelector: element, createElement: () => element(Symbol()) },
     window: { matchMedia: () => ({ matches: false }), scrollTo() {} },
+    URL: { createObjectURL: () => 'blob:test-image', revokeObjectURL() {} },
     location: { origin: 'http://localhost', search: '' },
     localStorage: { getItem: () => null },
     setTimeout: fn => { fn(); return 0; }, clearTimeout() {}, setInterval() {}, clearInterval() {},
@@ -144,7 +145,7 @@ test('result prompts track actual senses; editing preserves the last result', as
   assert.equal(requests.filter(r => r.url === '/api/publish').length, 0);
   assert.match(element('experiment-hint').textContent, /two emojis/);
   assert.match(element('explore-title').textContent, /1\/5 senses/);
-  element('experiment').handlers.click();
+  element('post').handlers.input();
   assert.equal(element('post').value, 'I got rejected. Then I tried again. Agree?');
   assert.equal(element('publish').disabled, false);
   assert.equal(element('verdict').hidden, false);
@@ -171,7 +172,7 @@ test('sense count belongs to the current post and buttons explain inactive sense
   element('post').value = 'I got rejected. Then I tried again. Agree? 🎉🎉';
   await context.feed(); await settle();
   assert.match(element('explore-title').textContent, /2\/5 senses/);
-  element('experiment').handlers.click();
+  element('post').handlers.input();
   element('post').value = 'Today I fixed a bug.';
   await context.feed(); await settle();
   assert.match(element('explore-title').textContent, /1\/5 senses/);
@@ -210,7 +211,7 @@ test('typing preserves the brain verdict and sharing receipt until resubmission'
   const oldScore = element('score').textContent;
   element('post').value = 'An edited draft';
   element('post').handlers.input();
-  element('experiment').handlers.click();
+  element('post').handlers.input();
   assert.equal(element('post').value, 'An edited draft');
   assert.equal(element('stamp').hidden, false);
   assert.equal(element('verdict').hidden, false);
@@ -231,4 +232,56 @@ test('sample progression explores two senses, two different senses, then four in
   for (let i = 0; i < expected.length; i++) {
     assert.deepEqual(Array.from(await s.sampleSenses(s.samples[i])).sort(), expected[i].sort());
   }
+});
+
+
+test('hall returns the complete post including paragraph breaks', async t => {
+  const post = 'Humbled to announce.\n\n' + 'My incredible journey. '.repeat(90) + '<the end>';
+  setup(t, async () => ({ ok: true, json: async () => [{ id: 7, post, fly_score: 84, votes: 2, n_active: 100 }] }));
+  const res = response(); await top({}, res);
+  assert.equal(res.body.top[0].post, post);
+  assert.equal(res.body.bottom[0].post, post);
+});
+
+test('image export preserves the scored brain and rating while the draft is edited', async () => {
+  const { context, element } = ui();
+  let frame = 'original-frame', exported;
+  context.window.BrainRotImage = {
+    capture: () => frame,
+    render: async result => { exported = result; return {}; },
+  };
+  element('post').value = 'I got rejected. Then I tried again. Agree?';
+  await context.feed(); await settle();
+  frame = 'later-frame';
+  element('post').value = 'A changed draft'; element('post').handlers.input();
+  await element('share').handlers.click();
+  assert.equal(exported.brain, 'original-frame');
+  assert.equal(exported.score, 25);
+  assert.equal(element('result-image-dialog').open, true);
+  assert.equal(element('download-image').download, 'brain-rot-25.png');
+});
+
+test('a stale image export cannot open after starting a new post', async () => {
+  const { context, element } = ui();
+  let finish;
+  context.window.BrainRotImage = { capture: () => 'frame', render: () => new Promise(resolve => { finish = resolve; }) };
+  element('post').value = 'I got rejected. Then I tried again. Agree?';
+  await context.feed(); await settle();
+  const saving = element('share').handlers.click();
+  await context.feed();
+  finish({}); await saving;
+  assert.notEqual(element('result-image-dialog').open, true);
+});
+
+test('brain capture redraws before reading the real canvas', () => {
+  const context = vm.createContext({ window: {} });
+  vm.runInContext(fs.readFileSync(new URL('../public/result-image.js', import.meta.url), 'utf8'), context);
+  const calls = [];
+  const image = context.window.BrainRotImage.capture({ display: {
+    draw: () => calls.push('draw'),
+    canvas: { width: 800, height: 600, toDataURL: type => { calls.push(type); return 'captured'; } },
+  } });
+  assert.equal(image, 'captured');
+  assert.deepEqual(calls, ['draw', 'image/png']);
+  assert.throws(() => context.window.BrainRotImage.capture(null), /not ready/);
 });

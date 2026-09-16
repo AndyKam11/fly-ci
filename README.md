@@ -36,3 +36,7 @@ PYTHONPATH=. .venv/bin/python prep_runs.py         # → ../flyfluencer/public/r
 ### Release order
 
 Apply `supabase/migrations/20260915010000_hall_opt_in.sql` to the existing database immediately before deploying the updated API/frontend together. Fresh installs should use the complete `supabase.sql`. The new API fails closed if the consent columns are absent. The static local preview has no database API, so its hall is unavailable and it cannot publish results.
+
+### Result image downloads
+
+**Save result image** previews a local 1200×1200 PNG containing the actual Neuroglancer frame captured at scoring, fly, rating, verdict and activated senses. Editing the draft preserves that result. Visitors download the PNG and attach it themselves; the site does not post to LinkedIn. Hall of Rot entries retain their full text and paragraph breaks.

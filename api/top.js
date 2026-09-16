@@ -1,6 +1,5 @@
-// Hall of Rot: most-upvoted / shittiest posts fed to the fly (deduplicated, truncated), plus the most substantive.
+// Hall of Rot: most-upvoted / shittiest posts fed to the fly (deduplicated), plus the most substantive.
 const H = () => ({ apikey: process.env.SUPABASE_SERVICE_KEY, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}` });
-const esc = s => String(s).replace(/\s+/g, ' ').slice(0, 110);
 export default async function handler(req, res) {
   res.setHeader('cache-control', 'no-store');
   if (!process.env.SUPABASE_URL) return res.status(200).json({ top: [], bottom: [] });
@@ -12,7 +11,7 @@ export default async function handler(req, res) {
       for (const x of await r.json()) {
         const key = String(x.post).toLowerCase().replace(/\W+/g, '').slice(0, 80);
         if (seen.has(key)) continue; seen.add(key);
-        out.push({ id: x.id, score: x.fly_score, mn9: x.mn9, votes: x.votes, melt: x.n_active > 3000, post: esc(x.post) });
+        out.push({ id: x.id, score: x.fly_score, mn9: x.mn9, votes: x.votes, melt: x.n_active > 3000, post: String(x.post) });
       }
       return out;
     };

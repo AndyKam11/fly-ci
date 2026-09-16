@@ -233,7 +233,7 @@ const sfx = {
 const $ = id => document.getElementById(id);
 const post = $('post'), go = $('go'), phase = $('phase'), dot = document.querySelector('.dot'), meter = $('meterfill');
 let busy = false, resultVersion = 0, publication = null;
-let lastText = '', savedDraft = null;
+let lastText = '', savedDraft = null, imageResult = null, imageObjectUrl = null;
 fetch('/api/rate').then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} shitposts fed to the fly so far`; }).catch(() => {});
 
 const SAMPLES = [
@@ -285,6 +285,7 @@ let sampleIdx = 0;
 $('sample').addEventListener('click', () => { if (busy) return; savedDraft = null; $('restore-post').hidden = true; awaitingNew = false; go.textContent = 'Feed the fly'; post.value = SAMPLES[sampleIdx++ % SAMPLES.length]; prepareEdit(); post.focus(); preload(); });
 function softReset() {
   $('result-context').hidden = true;
+  imageResult = null; $('share').disabled = true; $('image-status').textContent = '';
   resultVersion++; publication = null; $('publish').disabled = true;
   $('v-title').hidden = true;
   $('stamp').hidden = true; $('verdict').hidden = true; $('senses').hidden = true;
@@ -314,6 +315,7 @@ async function feed(e) {
   if (!text) { post.focus(); return; }
   if (isLink(text)) { fly('idle', "that's a link. the fly can't click. paste the text."); post.focus(); return; }
   if (busy || !neuronsLayer()) return;
+  imageResult = null; $('share').disabled = true; $('image-status').textContent = '';
   const version = ++resultVersion; publication = null; lastText = text; $('result-context').hidden = true;
   $('publish').disabled = true; $('publish').textContent = 'Add to Hall of Rot';
   $('publish-status').textContent = 'Hall of Rot makes your post public. Optional, every time.';
@@ -386,9 +388,6 @@ async function feed(e) {
       <div class="s-why">${c.why}</div></div>`;
   }).join('');
   $('senses').hidden = false;
-  const site = location.origin;
-  const shareUrl = `${site}/s?r=${rot}&t=${tierOf(run, rot)}&m=${run.mn9}`;
-  $('share').href = 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(shareUrl);
   $('pct').textContent = '';
   const ngState = { layers: [{ type: 'segmentation', source: SRC_NEURONS, segments: all, segmentColors: colors, name: 'neurons that judged your post' },
                              { type: 'segmentation', source: SRC_BRAIN, segments: ['1'], objectAlpha: 0.08, name: 'brain' }],
@@ -396,6 +395,9 @@ async function feed(e) {
   $('ng-link').href = 'https://neuroglancer-demo.appspot.com/#!' + encodeURIComponent(JSON.stringify(ngState));
   $('verdict').hidden = false;
   showExperiment(run);
+  imageResult = { score: rot, title, senses: Object.keys(CH).filter(ch => run.stim[ch]?.length).map(ch => CH[ch].name), brain: null };
+  try { imageResult.brain = window.BrainRotImage.capture(V()); } catch { /* Retry capture on click if the viewer is still loading. */ }
+  $('share').disabled = false;
   if (window.matchMedia('(max-width: 720px)').matches) $('verdict').scrollIntoView({ block: 'start', behavior: 'smooth' });
 
   fetch('/api/rate', { method: 'POST', headers: { 'content-type': 'application/json' },
@@ -413,6 +415,29 @@ async function feed(e) {
 let awaitingNew = false;
 function newPost() { savedDraft = null; $('restore-post').hidden = true; awaitingNew = false; go.textContent = 'Feed the fly'; softReset(); post.value = ''; post.focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 $('feedbox').addEventListener('submit', feed);
+$('share').addEventListener('click', async () => {
+  if (busy || !imageResult) return;
+  const result = imageResult, version = resultVersion;
+  $('share').disabled = true; $('share').textContent = 'Preparing image…'; $('image-status').textContent = '';
+  try {
+    // Editing preserves this exact result and its brain frame until resubmission.
+    if (!result.brain) result.brain = window.BrainRotImage.capture(V());
+    const blob = await window.BrainRotImage.render(result);
+    if (version !== resultVersion) return;
+    if (imageObjectUrl) URL.revokeObjectURL(imageObjectUrl);
+    imageObjectUrl = URL.createObjectURL(blob);
+    $('result-image-preview').src = imageObjectUrl;
+    $('download-image').href = imageObjectUrl;
+    $('download-image').download = `brain-rot-${result.score}.png`;
+    $('result-image-dialog').showModal();
+  } catch {
+    if (version === resultVersion) $('image-status').textContent = 'Couldn’t prepare the image. Please try again, or take a screenshot of the brain.';
+  } finally {
+    $('share').textContent = 'Save result image';
+    $('share').disabled = busy || !imageResult;
+  }
+});
+$('close-image').addEventListener('click', () => $('result-image-dialog').close());
 $('publish').addEventListener('click', async () => {
   if (!publication) return;
   const version = resultVersion, entry = publication;
@@ -460,9 +485,9 @@ $('restore-post').addEventListener('click', () => {
   prepareEdit(); post.focus(); preload();
 });
 let activeSenses = new Set();
-let hintQueue = [], hintIndex = 0;
+let hintQueue = [];
 function renderHint() {
-  const ch = hintQueue[hintIndex % hintQueue.length];
+  const ch = hintQueue[0];
   $('experiment-hint').textContent = `${CH[ch].icon} ${EXPERIMENTS[ch]}`;
 }
 function showExperiment(run) {
@@ -483,15 +508,8 @@ function showExperiment(run) {
   }));
   $('explore-title').textContent = `You lit up ${activeSenses.size}/5 senses`;
   hintQueue = Object.keys(EXPERIMENTS).sort((a, b) => Number(activeSenses.has(a)) - Number(activeSenses.has(b)));
-  hintIndex = 0; renderHint();
+  renderHint();
 }
-$('next-hint').addEventListener('click', () => { hintIndex++; renderHint(); });
-$('experiment').addEventListener('click', () => {
-  awaitingNew = false; go.textContent = 'Feed the fly';
-  prepareEdit(); post.focus(); post.setSelectionRange(post.value.length, post.value.length);
-  $('feedbox').scrollIntoView({ block: 'center', behavior: 'smooth' });
-});
-
 document.querySelector('.nav-hall').addEventListener('click', () => { $('hall-x').focus({ preventScroll: true }); });
 document.querySelector('.nav-about').addEventListener('click', () => {
   $('about-x').open = true; $('about-x').focus({ preventScroll: true });
@@ -507,7 +525,7 @@ async function loadHall() {
     }
     if (!response.ok) throw new Error('Hall unavailable');
     const d = await response.json();
-    const row = x => `<div class="hr"><button class="vote ${voted.has(x.id) ? 'did' : ''}" data-id="${x.id}" title="the fly agrees">🪰 <b>${x.votes}</b></button><span class="hr-s" style="color:${x.melt ? '#ff3b3b' : x.score < 30 ? '#ff5a5a' : '#b6ff3b'}">${x.score}%</span><span class="hr-t">${x.post.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}…</span></div>`;
+    const row = x => `<div class="hr"><button class="vote ${voted.has(x.id) ? 'did' : ''}" data-id="${x.id}" title="the fly agrees">🪰 <b>${x.votes}</b></button><span class="hr-s" style="color:${x.melt ? '#ff3b3b' : x.score < 30 ? '#ff5a5a' : '#b6ff3b'}">${x.score}%</span><span class="hr-t">${x.post.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</span></div>`;
     $('hall').innerHTML = (d.top.length ? `<h4>🏆 shittiest so far · upvote with the fly</h4>` + d.top.map(row).join('') : '<p>nothing yet. be the first.</p>') + (d.bottom.length ? `<h4>🪦 too much substance</h4>` + d.bottom.map(row).join('') : '');
     $('hall').querySelectorAll('.vote').forEach(btn => btn.addEventListener('click', async () => {
       const id = Number(btn.dataset.id); if (voted.has(id)) return;
