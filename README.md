@@ -37,6 +37,10 @@ PYTHONPATH=. .venv/bin/python prep_runs.py         # → ../flyfluencer/public/r
 
 Apply `supabase/migrations/20260915010000_hall_opt_in.sql` to the existing database immediately before deploying the updated API/frontend together. Fresh installs should use the complete `supabase.sql`. The new API fails closed if the consent columns are absent. The static local preview has no database API, so its hall is unavailable and it cannot publish results.
 
-### Result image downloads
+### Result image downloads and LinkedIn previews
 
-**Share on LinkedIn** previews a local 1200×1200 PNG containing the actual Neuroglancer frame captured at scoring, fly, rating, verdict and activated senses. Editing the draft preserves that result. Where file sharing is supported, visitors can open the native share menu and choose LinkedIn if installed and available. Otherwise they download the PNG and open LinkedIn to attach it themselves. No URL is sent with the image; the site does not publish posts. Hall of Rot entries retain their full text and paragraph breaks.
+**Download image** saves a local 1200×630 PNG containing the actual Neuroglancer frame captured at scoring, fly, rating, verdict and activated senses. Editing preserves that result.
+
+**Share on LinkedIn** saves that image only after an explicit click, then opens LinkedIn with a unique `/s?id=...` URL. Its server-rendered Open Graph tags point to the screenshot, and visitors see the result image with a link back to the game. The original post remains private unless separately added to the Hall. Existing score-only share links continue to work.
+
+Apply `20260915020000_result_shares.sql` before deploying. The `result_shares` table uses row-level security with no anonymous table access. The upload API checks the result receipt, limits uploads to 1.5 MB landscape PNGs, and stores one immutable image per rating. The public image endpoint only accepts random UUIDs. Tests use mocked APIs and do not publish real posts.

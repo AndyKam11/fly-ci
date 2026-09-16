@@ -72,10 +72,12 @@
     </section>
 
     <div class="result-actions">
+      <button id="download-image" class="btn ghost" type="button" disabled>Download image</button>
       <button id="share" class="btn" type="button" disabled>Share on LinkedIn</button>
       <button id="publish" class="btn ghost" type="button" disabled>Add to Hall of Rot</button>
     </div>
     <p id="image-status" class="privacy-note" role="status"></p>
+    <a id="share-fallback" class="btn" target="_blank" rel="noopener noreferrer" hidden>Continue to LinkedIn ↗</a>
     <p id="publish-status" class="privacy-note" role="status">Hall of Rot makes your post public. Optional, every time.</p>
 
     <div class="pct" id="pct"></div>
@@ -111,17 +113,6 @@
   </section>
 
 </main>
-<dialog id="result-image-dialog" aria-labelledby="image-dialog-title">
-  <div class="image-dialog-heading"><h2 id="image-dialog-title">Share your result on LinkedIn</h2><button id="close-image" class="btn ghost" type="button" autofocus>Close</button></div>
-  <p id="image-share-help">Download your image, open LinkedIn, and attach it to a new post.</p>
-  <img id="result-image-preview" alt="Your simulated fly brain, brain rot rating, and activated senses" width="1200" height="1200">
-  <div class="row">
-    <button id="share-image-native" class="btn" type="button" hidden>Share image…</button>
-    <a id="download-image" class="btn" download="brain-rot.png">Download image</a>
-    <a class="btn ghost" href="https://www.linkedin.com/feed/" target="_blank" rel="noopener noreferrer">Open LinkedIn ↗</a>
-  </div>
-  <p id="share-image-status" role="status"></p>
-</dialog>
 <script src="result-image.js"></script>
 <script src="app.js"></script>
 </body>

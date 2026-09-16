@@ -236,7 +236,7 @@ const sfx = {
 const $ = id => document.getElementById(id);
 const post = $('post'), go = $('go'), phase = $('phase'), dot = document.querySelector('.dot'), meter = $('meterfill');
 let busy = false, resultVersion = 0, publication = null;
-let lastText = '', savedDraft = null, imageResult = null, imageObjectUrl = null, shareImageFile = null;
+let lastText = '', savedDraft = null, imageResult = null, imageObjectUrl = null;
 fetch('/api/rate').then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} posts fed to the fly so far`; }).catch(() => {});
 
 const SAMPLES = [
@@ -288,7 +288,7 @@ let sampleIdx = 0;
 $('sample').addEventListener('click', () => { if (busy) return; savedDraft = null; $('restore-post').hidden = true; awaitingNew = false; go.textContent = 'Feed the fly'; post.value = SAMPLES[sampleIdx++ % SAMPLES.length]; prepareEdit(); post.focus(); post.setSelectionRange(0, 0); post.scrollTop = 0; post.scrollLeft = 0; preload(); });
 function softReset() {
   $('result-context').hidden = true;
-  imageResult = null; $('share').disabled = true; $('image-status').textContent = '';
+  imageResult = null; $('share').disabled = true; $('download-image').disabled = true; $('share-fallback').hidden = true; $('image-status').textContent = '';
   resultVersion++; publication = null; $('publish').disabled = true;
   $('v-title').hidden = true;
   $('stamp').hidden = true; $('verdict').hidden = true; $('senses').hidden = true;
@@ -318,7 +318,7 @@ async function feed(e) {
   if (!text.trim()) { post.focus(); return; }
   if (isLink(text)) { fly('idle', "that's a link. the fly can't click. paste the text."); post.focus(); return; }
   if (busy || !neuronsLayer()) return;
-  imageResult = null; $('share').disabled = true; $('image-status').textContent = '';
+  imageResult = null; $('share').disabled = true; $('download-image').disabled = true; $('share-fallback').hidden = true; $('image-status').textContent = '';
   const version = ++resultVersion; publication = null; lastText = text; $('result-context').hidden = true;
   $('publish').disabled = true; $('publish').textContent = 'Add to Hall of Rot';
   $('publish-status').textContent = 'Hall of Rot makes your post public. Optional, every time.';
@@ -400,7 +400,7 @@ async function feed(e) {
   showExperiment(run);
   imageResult = { score: rot, title, senses: Object.keys(CH).filter(ch => run.stim[ch]?.length).map(ch => CH[ch].name), brain: null };
   try { imageResult.brain = window.BrainRotImage.capture(V()); } catch { /* Retry capture on click if the viewer is still loading. */ }
-  $('share').disabled = false;
+  $('download-image').disabled = false;
   if (window.matchMedia('(max-width: 720px)').matches) $('verdict').scrollIntoView({ block: 'start', behavior: 'smooth' });
 
   fetch('/api/rate', { method: 'POST', headers: { 'content-type': 'application/json' },
@@ -408,7 +408,7 @@ async function feed(e) {
                            levels, n_active: run.n_active }) })
     .then(r => r.ok ? r.json() : null).then(d => {
       if (version !== resultVersion) return;
-      if (d?.ok && d.id && d.token) { publication = { id: d.id, token: d.token }; $('publish').disabled = false; }
+      if (d?.ok && d.id && d.token) { publication = { id: d.id, token: d.token }; imageResult.receipt = { ...publication }; $('publish').disabled = false; $('share').disabled = false; }
       else $('publish-status').textContent = 'Could not save this result. Feed the fly again to submit it.';
       if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} posts fed to the fly so far`;
       if (d && d.percentile != null && d.count > 20) $('pct').textContent = rot === 0 ? `Less rotten than ${100 - d.percentile}% of posts fed to the fly.` : `More rotten than ${d.percentile}% of posts fed to the fly.`;
@@ -418,51 +418,63 @@ async function feed(e) {
 let awaitingNew = false;
 function newPost() { savedDraft = null; $('restore-post').hidden = true; awaitingNew = false; go.textContent = 'Feed the fly'; softReset(); post.value = ''; post.focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 $('feedbox').addEventListener('submit', feed);
-$('share').addEventListener('click', async () => {
+async function resultBlob(result) {
+  if (!result.blob) {
+    if (!result.brain) result.brain = window.BrainRotImage.capture(V());
+    result.blob = await window.BrainRotImage.render(result);
+  }
+  return result.blob;
+}
+$('download-image').addEventListener('click', async () => {
   if (busy || !imageResult) return;
   const result = imageResult, version = resultVersion;
-  $('share').disabled = true; $('share').textContent = 'Preparing image…'; $('image-status').textContent = '';
+  $('download-image').disabled = true; $('image-status').textContent = '';
   try {
-    // Editing preserves this exact result and its brain frame until resubmission.
-    if (!result.brain) result.brain = window.BrainRotImage.capture(V());
-    const blob = await window.BrainRotImage.render(result);
+    const blob = await resultBlob(result);
     if (version !== resultVersion) return;
     if (imageObjectUrl) URL.revokeObjectURL(imageObjectUrl);
     imageObjectUrl = URL.createObjectURL(blob);
-    $('result-image-preview').src = imageObjectUrl;
-    $('download-image').href = imageObjectUrl;
-    $('download-image').download = `brain-rot-${result.score}.png`;
-    shareImageFile = null;
-    try {
-      const file = new File([blob], `brain-rot-${result.score}.png`, { type: 'image/png' });
-      if (navigator.share && navigator.canShare?.({ files: [file] })) shareImageFile = file;
-    } catch { /* File sharing is optional; image download remains available. */ }
-    $('share-image-native').hidden = !shareImageFile;
-    $('share-image-native').disabled = false;
-    $('share-image-status').textContent = '';
-    $('image-share-help').textContent = shareImageFile
-      ? 'Choose LinkedIn from the share menu if available, then review and publish your image post. You can also download the image and attach it yourself.'
-      : 'Download your image, open LinkedIn, and attach it to a new post. You choose the caption and publish it there.';
-    $('result-image-dialog').showModal();
+    const link = document.createElement('a');
+    link.href = imageObjectUrl; link.download = `brain-rot-${result.score}.png`;
+    document.body.appendChild(link); link.click(); link.remove();
+  } catch { if (version === resultVersion) $('image-status').textContent = 'Couldn’t prepare the image. Please try again.'; }
+  finally { $('download-image').disabled = busy || !imageResult; }
+});
+$('share').addEventListener('click', async () => {
+  if (busy || !imageResult?.receipt) return;
+  const result = imageResult, version = resultVersion;
+  // Open during the click; the image upload must finish before navigating to LinkedIn.
+  const popup = window.open('about:blank', '_blank');
+  if (popup) popup.opener = null;
+  $('share').disabled = true; $('share').textContent = 'Preparing share…';
+  $('share-fallback').hidden = true; $('image-status').textContent = '';
+  try {
+    if (!result.shareUrl) {
+      const blob = await resultBlob(result);
+      if (version !== resultVersion) { popup?.close(); return; }
+      const image = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject; reader.readAsDataURL(blob);
+      });
+      if (version !== resultVersion) { popup?.close(); return; }
+      const response = await fetch('/api/result-share', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...result.receipt, image }) });
+      const data = await response.json();
+      if (!response.ok || !data.ok || !/^https:\/\/brainrotposts\.com\/s\?id=[a-f0-9-]{36}$/.test(data.url)) throw new Error('Share failed');
+      result.shareUrl = data.url;
+    }
+    if (version !== resultVersion) { popup?.close(); return; }
+    const url = 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(result.shareUrl);
+    if (popup && !popup.closed) popup.location.replace(url);
+    else { $('share-fallback').href = url; $('share-fallback').hidden = false; }
   } catch {
-    if (version === resultVersion) $('image-status').textContent = 'Couldn’t prepare the image. Please try again, or take a screenshot of the brain.';
+    popup?.close();
+    if (version === resultVersion) $('image-status').textContent = 'Couldn’t create your share link. Try again, or download the image.';
   } finally {
     $('share').textContent = 'Share on LinkedIn';
-    $('share').disabled = busy || !imageResult;
+    $('share').disabled = busy || !imageResult?.receipt;
   }
 });
-$('share-image-native').addEventListener('click', async () => {
-  if (!shareImageFile) return;
-  $('share-image-native').disabled = true;
-  $('share-image-status').textContent = '';
-  try {
-    // A fresh click preserves the user activation required by the device share menu.
-    await navigator.share({ files: [shareImageFile] });
-  } catch (error) {
-    if (error.name !== 'AbortError') $('share-image-status').textContent = 'Image sharing is unavailable here. Download the image and attach it on LinkedIn.';
-  } finally { $('share-image-native').disabled = false; }
-});
-$('close-image').addEventListener('click', () => $('result-image-dialog').close());
 $('publish').addEventListener('click', async () => {
   if (!publication) return;
   const version = resultVersion, entry = publication;

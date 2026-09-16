@@ -271,12 +271,6 @@ body.og .lab{display:block}body.og .workspace,body.og .stage-verdict{display:non
   .top nav a{font-size:12px}
 }
 
-#result-image-dialog{width:min(640px,calc(100vw - 24px));max-height:90dvh;overflow:auto;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--bg);color:var(--ink)}
-#result-image-dialog::backdrop{background:#000b}
-.image-dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.image-dialog-heading h2{font-size:20px;margin:0}
-#result-image-dialog p{font-size:14px;color:var(--mute)}
-#result-image-preview{display:block;width:100%;height:auto;margin:14px 0;border-radius:10px}
 #image-status:empty{display:none}
 
 @media(max-width:540px){.hr{display:grid;grid-template-columns:auto 1fr;padding:16px 0}.hr-t{grid-column:1 / -1}}

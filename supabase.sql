@@ -33,3 +33,15 @@ create index if not exists ratings_public_rank on ratings (votes desc, fly_score
 create or replace function increment_votes(rid bigint) returns int language sql security definer set search_path = public as $$
   update ratings set votes = votes + 1 where id = rid and is_public = true returning votes;
 $$;
+
+-- Explicitly shared result images only. Original post text and Hall consent stay in ratings.
+create table if not exists result_shares (
+  id uuid primary key,
+  rating_id bigint not null unique references ratings(id) on delete cascade,
+  score integer not null check (score between 0 and 100),
+  image_base64 text not null check (length(image_base64) <= 2000000),
+  created_at timestamptz not null default now()
+);
+alter table result_shares enable row level security;
+revoke all on result_shares from anon, authenticated;
+grant select, insert on result_shares to service_role;

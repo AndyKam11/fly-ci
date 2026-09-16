@@ -123,7 +123,7 @@ function ui() {
       style: { setProperty() {} }, classList: { add() {}, remove() {}, toggle() {} },
       addEventListener(event, fn) { this.handlers[event] = fn; },
       replaceChildren(...children) { this.children = children; },
-      showModal() { this.open = true; }, close() { this.open = false; }, setAttribute() {}, appendChild() {}, querySelectorAll() { return []; }, focus() {}, setSelectionRange() {}, scrollIntoView() {},
+      showModal() { this.open = true; }, close() { this.open = false; }, click() { this.clicked = true; }, remove() {}, setAttribute() {}, appendChild() {}, querySelectorAll() { return []; }, focus() {}, setSelectionRange() {}, scrollIntoView() {},
     });
     return elements.get(key);
   };
@@ -132,8 +132,9 @@ function ui() {
   const requests = [];
   let clock = 0;
   const context = vm.createContext({
-    document: { getElementById: element, querySelector: element, createElement: () => element(Symbol()) },
-    window: { matchMedia: () => ({ matches: false }), scrollTo() {} },
+    document: { body: { appendChild(node) { element('downloaded').link = node; } }, getElementById: element, querySelector: element, createElement: () => element(Symbol()) },
+    window: { matchMedia: () => ({ matches: false }), scrollTo() {}, open() { return { close() {}, location: { replace(url) { element('opened').url = url; } } }; } },
+    FileReader: class { readAsDataURL() { this.result = 'data:image/png;base64,aW1hZ2U='; this.onload(); } },
     URL: { createObjectURL: () => 'blob:test-image', revokeObjectURL() {} },
     location: { origin: 'http://localhost', search: '' },
     localStorage: { getItem: () => null },
@@ -142,6 +143,7 @@ function ui() {
     fetch: async (url, opts) => {
       if (url.startsWith('runs/')) return { json: async () => JSON.parse(fs.readFileSync(new URL('../public/' + url, import.meta.url))) };
       requests.push({ url, opts });
+      if (url === '/api/result-share') return { ok: true, json: async () => ({ ok: true, url: 'https://brainrotposts.com/s?id=11111111-1111-4111-8111-111111111111' }) };
       return { ok: true, json: async () => url === '/api/top' ? { top: [], bottom: [] } : opts?.method === 'POST' ? { ok: true, id: requests.length, token: 'a'.repeat(64), count: 2 } : { count: 1 } };
     },
   });
@@ -267,13 +269,11 @@ test('image export preserves the scored brain and rating while the draft is edit
   await context.feed(); await settle();
   frame = 'later-frame';
   element('post').value = 'A changed draft'; element('post').handlers.input();
-  await element('share').handlers.click();
+  await element('download-image').handlers.click();
   assert.equal(exported.brain, 'original-frame');
   assert.equal(exported.score, 25);
-  assert.equal(element('result-image-dialog').open, true);
-  assert.equal(element('download-image').download, 'brain-rot-25.png');
-  assert.equal(element('share-image-native').hidden, true);
-  assert.match(element('image-share-help').textContent, /attach it to a new post/);
+  assert.equal(element('downloaded').link.download, 'brain-rot-25.png');
+  assert.equal(element('downloaded').link.clicked, true);
 });
 
 test('a stale image export cannot open after starting a new post', async () => {
@@ -282,10 +282,10 @@ test('a stale image export cannot open after starting a new post', async () => {
   context.window.BrainRotImage = { capture: () => 'frame', render: () => new Promise(resolve => { finish = resolve; }) };
   element('post').value = 'I got rejected. Then I tried again. Agree?';
   await context.feed(); await settle();
-  const saving = element('share').handlers.click();
+  const saving = element('download-image').handlers.click();
   await context.feed();
   finish({}); await saving;
-  assert.notEqual(element('result-image-dialog').open, true);
+  assert.equal(element('downloaded').link, undefined);
 });
 
 test('brain capture redraws before reading the real canvas', () => {
@@ -312,28 +312,33 @@ test('submitting preserves the original post whitespace for the Hall', async () 
 });
 
 
-test('LinkedIn sharing hands off the PNG without a URL and waits for a separate user click', async () => {
-  const { context, element } = ui();
-  let shared;
-  context.File = class { constructor(parts, name, options) { this.parts = parts; this.name = name; this.type = options.type; } };
-  context.navigator = { canShare: () => true, share: async data => { shared = data; } };
+test('LinkedIn shares a unique image-preview link, reuses it, and preserves Hall consent', async () => {
+  const { context, element, requests } = ui();
   context.window.BrainRotImage = { capture: () => 'frame', render: async () => ({ png: true }) };
   element('post').value = 'Today I fixed a bug.';
   await context.feed(); await settle();
+  await element('publish').handlers.click(); // Hall publication must not consume the image receipt.
   await element('share').handlers.click();
-  assert.equal(shared, undefined);
-  assert.equal(element('share-image-native').hidden, false);
-  await element('share-image-native').handlers.click();
-  assert.equal(shared.files.length, 1);
-  assert.equal(shared.files[0].type, 'image/png');
-  assert.equal(shared.url, undefined);
-  context.navigator.share = async () => { throw Object.assign(new Error('cancelled'), { name: 'AbortError' }); };
-  await element('share-image-native').handlers.click();
-  assert.equal(element('share-image-status').textContent, '');
-  context.navigator.share = async () => { throw new Error('unavailable'); };
-  await element('share-image-native').handlers.click();
-  assert.match(element('share-image-status').textContent, /Download the image/);
+  assert.match(element('opened').url, /^https:\/\/www.linkedin.com\/sharing\/share-offsite\/\?url=/);
+  const uploads = requests.filter(r => r.url === '/api/result-share');
+  assert.equal(uploads.length, 1);
+  const body = JSON.parse(uploads[0].opts.body);
+  assert.equal(body.image, 'aW1hZ2U='); assert.equal(body.token.length, 64);
+  assert.equal(body.post, undefined);
+  await element('share').handlers.click();
+  assert.equal(requests.filter(r => r.url === '/api/result-share').length, 1);
+  assert.equal(requests.filter(r => r.url === '/api/publish').length, 1);
 });
+test('a blocked popup offers a direct LinkedIn link after image upload', async () => {
+  const { context, element } = ui();
+  context.window.open = () => null;
+  context.window.BrainRotImage = { capture: () => 'frame', render: async () => ({}) };
+  element('post').value = 'Today I fixed a bug.';
+  await context.feed(); await settle(); await element('share').handlers.click();
+  assert.equal(element('share-fallback').hidden, false);
+  assert.match(element('share-fallback').href, /linkedin.com/);
+});
+
 
 
 const FRUIT_FLY_SALES = 'ANYONE LISTENING?!\n\nI I have written 8321934 paragraphs about the reproductive cycle of the fruit fly.\n\nHere is what it tought me about B2B Sales 🤩';
