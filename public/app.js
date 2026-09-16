@@ -295,7 +295,6 @@ function prepareEdit() {
   $('result-context').hidden = $('verdict').hidden || post.value.trim() === lastText;
 }
 post.addEventListener('input', () => { if (busy) return; prepareEdit(); preload(); });
-$('again').addEventListener('click', newPost);
 
 // preload: while the post is being typed, quietly stream the meshes of the run it will get
 let preloadTimer = null;
@@ -389,8 +388,6 @@ async function feed(e) {
   $('senses').hidden = false;
   const site = location.origin;
   const shareUrl = `${site}/s?r=${rot}&t=${tierOf(run, rot)}&m=${run.mn9}`;
-  const copyText = `🪰 BRAIN ROT: ${rot}% — ${title}\n\nI fed my LinkedIn post to a simulated fruit fly brain (139,255 real neurons). ${melt ? `It triggered a runaway state in ${run.n_active.toLocaleString()} neurons.` : `The tongue motor neuron fired at ${run.mn9} Hz.`} Flies know a shitpost when they taste one.\n\n${shareUrl}`;
-  $('copy').onclick = async () => { try { await navigator.clipboard.writeText(copyText); $('copy').textContent = 'Copied!'; setTimeout(() => $('copy').textContent = 'Copy verdict', 1500); } catch (e) { prompt('Copy this:', copyText); } };
   $('share').href = 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(shareUrl);
   $('pct').textContent = '';
   const ngState = { layers: [{ type: 'segmentation', source: SRC_NEURONS, segments: all, segmentColors: colors, name: 'neurons that judged your post' },

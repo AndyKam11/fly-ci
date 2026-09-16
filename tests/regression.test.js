@@ -161,7 +161,7 @@ test('a delayed save response cannot enable publishing after starting a new post
   const { context, element } = ui();
   element('post').value = 'Today I fixed a bug.';
   await context.feed();
-  element('again').handlers.click();
+  await context.feed(); // The main form starts a new post after a completed result.
   await settle();
   assert.equal(element('publish').disabled, true);
 });
