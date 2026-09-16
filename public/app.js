@@ -44,7 +44,7 @@ const BAIT = [
   { ch: 'sight', label: 'emoji', w: 4, cap: 20, re: /\p{Extended_Pictographic}/gu },
   { ch: 'sight', label: 'bullets', w: 3, cap: 12, re: /^\s*(→|✅|•|▪|-|–|—|\d+[.)])\s+/gmu },
   { ch: 'sight', label: 'arrows & ticks', w: 2, cap: 8, re: /[→↳✓✔︎★☆]/gu },
-  { ch: 'bitter', label: 'numbers with units', w: 3, cap: 12, re: /\b\d+(?:[.,]\d+)*\s*(?:%|[$€£]|(?:k|m|x|days?|weeks?|months?|years?|hours?|customers?|users?|people|deals?|calls?|emails?|paragraphs?|ms|seconds?|usd|eur)\b)|[$€£]\s*\d+(?:[.,]\d+)*/gi },
+  { ch: 'bitter', label: 'numbers', w: 3, cap: 12, re: /(?<![\p{L}\p{N}_])\d+(?:[.,]\d+)*/gu },
   { ch: 'bitter', label: 'reasoning', w: 2, cap: 12, re: /\b(because|however|instead|although|whereas|in practice|turns out|the catch|trade.?off|the problem was|what actually)\b/gi },
   { ch: 'bitter', label: 'specifics', w: 3, cap: 12, re: /\b(postgres|sql|api|q[1-4]|churn|arr|mrr|cac|nps|p&l|gross margin|term sheet|clause|termination|rev share|rfp|soc ?2|gdpr|kubernetes|latency|onboarding flow)\b/gi },
 ];
@@ -71,7 +71,7 @@ function sense(text) {
   pts.sugar += Math.round(30 * Math.min(1, pts.sugar / words));
   for (const k in hits) hits[k].sort((a, b) => b.pts - a.pts);
   const s = pts.sugar, b = pts.bitter;
-  const numericalClaim = hits.bitter.some(hit => hit.label === 'numbers with units');
+  const numericalClaim = hits.bitter.some(hit => hit.label === 'numbers');
   const levels = {
     sugar:  s < 1 ? 0 : s < 12 ? 1 : s < 25 ? 2 : s < 40 ? 3 : s < 55 ? 4 : s < 75 ? 5 : 6,
     // A numerical claim activates bitter independently of engagement bait.
@@ -504,7 +504,7 @@ const EXPERIMENTS = {
   sound: 'Try THREE EXCLAMATION MARKS!!! Shouting stimulates hearing inputs in the antennae.',
   smell: 'Try a word like “delve” or “tapestry”. AI-style language stimulates smell inputs.',
   sugar: 'Try “Humbled to announce” or “Agree?”. Engagement bait stimulates sugar-sensing neurons.',
-  bitter: 'Try a percentage like “0.5%” or a quantity like “200 calls”. Numerical claims activate bitter inputs—even alongside engagement bait—and can suppress the tongue response.',
+  bitter: 'Try a number: “166,000”, “125 million” or “0.5%”. Numbers activate bitter inputs—even alongside engagement bait—and can suppress the tongue response.',
 };
 const SENSE_EXAMPLES = {
   sugar: 'Humbled to announce my new chapter. Grateful for this incredible journey. Agree?',

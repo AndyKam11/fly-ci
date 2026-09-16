@@ -361,7 +361,7 @@ test('one emoji activates sight without manufacturing sugar or a high score', as
 
 test('percentages and numerical quantities activate bitter alongside a single emoji and sugar', async () => {
   const s = scoring();
-  for (const claim of ['0.0000001%', '0.0000001%.', '25%', '25 %', '$200', '200 calls', '8321934 paragraphs']) {
+  for (const claim of ['0.0000001%', '0.0000001%.', '25%', '25 %', '$200', '200 calls', '8321934 paragraphs', '166,000 neurons', '125 million synapses', '42', '-12', '1.25', '200k', '200ms']) {
     const text = `Humbled to announce my incredible journey. Agree? 🤩 In fact, ${claim} of startups make it this far.`;
     const senses = Array.from(await s.sampleSenses(text));
     assert.ok(senses.includes('bitter'), claim);
@@ -376,4 +376,27 @@ test('the original two-emoji post plus a tiny percentage activates sight and bit
   assert.ok(senses.includes('sight'));
   assert.ok(senses.includes('bitter'));
   assert.deepEqual(Array.from(await s.sampleSenses('I work in B2B sales. 🤩')), ['sight']);
+});
+
+
+test('the launch post activates bitter from neuron and synapse counts', async () => {
+  const text = `I hooked up a fruit fly brain to judge LinkedIn posts 🪰
+
+Google and HHMI Janelia released a full wiring map of a fly's nervous system: 166,000 neurons and 125 million synapses.
+
+I plugged LinkedIn into its senses:
+
+🍬 Sugar: humblebrags, "Agree?", "journey". Tongue comes out.
+🧪 Bitter: numbers, real paragraphs, "because". Tongue stays in.
+👃 Smell: delve, tapestry, "it's not X, it's Y". The brain runs away with itself.
+👂 Hearing: SHOUTING!!! LET'S GOOO.
+👁 Sight: emoji, bullets, arrows. The fly sees your post. It doesn't read it.
+
+Of course, the worse the post, the more the fly loves it!
+
+I ran this post through it. The fly went nuts.
+
+Have it rate your posts here: brainrotposts.com`;
+  const senses = Array.from(await scoring().sampleSenses(text));
+  assert.deepEqual(senses.sort(), ['bitter', 'sight', 'smell', 'sound', 'sugar']);
 });
