@@ -39,4 +39,4 @@ Apply `supabase/migrations/20260915010000_hall_opt_in.sql` to the existing datab
 
 ### Result image downloads
 
-**Save result image** previews a local 1200×1200 PNG containing the actual Neuroglancer frame captured at scoring, fly, rating, verdict and activated senses. Editing the draft preserves that result. Visitors download the PNG and attach it themselves; the site does not post to LinkedIn. Hall of Rot entries retain their full text and paragraph breaks.
+**Share on LinkedIn** previews a local 1200×1200 PNG containing the actual Neuroglancer frame captured at scoring, fly, rating, verdict and activated senses. Editing the draft preserves that result. Where file sharing is supported, visitors can open the native share menu and choose LinkedIn if installed and available. Otherwise they download the PNG and open LinkedIn to attach it themselves. No URL is sent with the image; the site does not publish posts. Hall of Rot entries retain their full text and paragraph breaks.

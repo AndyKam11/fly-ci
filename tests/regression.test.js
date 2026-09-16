@@ -272,6 +272,8 @@ test('image export preserves the scored brain and rating while the draft is edit
   assert.equal(exported.score, 25);
   assert.equal(element('result-image-dialog').open, true);
   assert.equal(element('download-image').download, 'brain-rot-25.png');
+  assert.equal(element('share-image-native').hidden, true);
+  assert.match(element('image-share-help').textContent, /attach it to a new post/);
 });
 
 test('a stale image export cannot open after starting a new post', async () => {
@@ -307,4 +309,28 @@ test('submitting preserves the original post whitespace for the Hall', async () 
   await context.feed(); await settle();
   const request = requests.find(r => r.url === '/api/rate' && r.opts?.method === 'POST');
   assert.equal(JSON.parse(request.opts.body).post, original);
+});
+
+
+test('LinkedIn sharing hands off the PNG without a URL and waits for a separate user click', async () => {
+  const { context, element } = ui();
+  let shared;
+  context.File = class { constructor(parts, name, options) { this.parts = parts; this.name = name; this.type = options.type; } };
+  context.navigator = { canShare: () => true, share: async data => { shared = data; } };
+  context.window.BrainRotImage = { capture: () => 'frame', render: async () => ({ png: true }) };
+  element('post').value = 'Today I fixed a bug.';
+  await context.feed(); await settle();
+  await element('share').handlers.click();
+  assert.equal(shared, undefined);
+  assert.equal(element('share-image-native').hidden, false);
+  await element('share-image-native').handlers.click();
+  assert.equal(shared.files.length, 1);
+  assert.equal(shared.files[0].type, 'image/png');
+  assert.equal(shared.url, undefined);
+  context.navigator.share = async () => { throw Object.assign(new Error('cancelled'), { name: 'AbortError' }); };
+  await element('share-image-native').handlers.click();
+  assert.equal(element('share-image-status').textContent, '');
+  context.navigator.share = async () => { throw new Error('unavailable'); };
+  await element('share-image-native').handlers.click();
+  assert.match(element('share-image-status').textContent, /Download the image/);
 });

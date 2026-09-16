@@ -72,7 +72,7 @@
     </section>
 
     <div class="result-actions">
-      <button id="share" class="btn" type="button" disabled>Save result image</button>
+      <button id="share" class="btn" type="button" disabled>Share on LinkedIn</button>
       <button id="publish" class="btn ghost" type="button" disabled>Add to Hall of Rot</button>
     </div>
     <p id="image-status" class="privacy-note" role="status"></p>
@@ -112,10 +112,15 @@
 
 </main>
 <dialog id="result-image-dialog" aria-labelledby="image-dialog-title">
-  <div class="image-dialog-heading"><h2 id="image-dialog-title">Your brain rot result</h2><button id="close-image" class="btn ghost" type="button" autofocus>Close</button></div>
-  <p>Download the image and attach it to your LinkedIn post. On mobile, you can also press and hold the image to save it.</p>
+  <div class="image-dialog-heading"><h2 id="image-dialog-title">Share your result on LinkedIn</h2><button id="close-image" class="btn ghost" type="button" autofocus>Close</button></div>
+  <p id="image-share-help">Download your image, open LinkedIn, and attach it to a new post.</p>
   <img id="result-image-preview" alt="Your simulated fly brain, brain rot rating, and activated senses" width="1200" height="1200">
-  <a id="download-image" class="btn" download="brain-rot.png">Download PNG</a>
+  <div class="row">
+    <button id="share-image-native" class="btn" type="button" hidden>Share image…</button>
+    <a id="download-image" class="btn" download="brain-rot.png">Download image</a>
+    <a class="btn ghost" href="https://www.linkedin.com/feed/" target="_blank" rel="noopener noreferrer">Open LinkedIn ↗</a>
+  </div>
+  <p id="share-image-status" role="status"></p>
 </dialog>
 <script src="result-image.js"></script>
 <script src="app.js"></script>

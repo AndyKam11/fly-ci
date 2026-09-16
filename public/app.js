@@ -235,7 +235,7 @@ const sfx = {
 const $ = id => document.getElementById(id);
 const post = $('post'), go = $('go'), phase = $('phase'), dot = document.querySelector('.dot'), meter = $('meterfill');
 let busy = false, resultVersion = 0, publication = null;
-let lastText = '', savedDraft = null, imageResult = null, imageObjectUrl = null;
+let lastText = '', savedDraft = null, imageResult = null, imageObjectUrl = null, shareImageFile = null;
 fetch('/api/rate').then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} posts fed to the fly so far`; }).catch(() => {});
 
 const SAMPLES = [
@@ -431,13 +431,35 @@ $('share').addEventListener('click', async () => {
     $('result-image-preview').src = imageObjectUrl;
     $('download-image').href = imageObjectUrl;
     $('download-image').download = `brain-rot-${result.score}.png`;
+    shareImageFile = null;
+    try {
+      const file = new File([blob], `brain-rot-${result.score}.png`, { type: 'image/png' });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) shareImageFile = file;
+    } catch { /* File sharing is optional; image download remains available. */ }
+    $('share-image-native').hidden = !shareImageFile;
+    $('share-image-native').disabled = false;
+    $('share-image-status').textContent = '';
+    $('image-share-help').textContent = shareImageFile
+      ? 'Choose LinkedIn from the share menu if available, then review and publish your image post. You can also download the image and attach it yourself.'
+      : 'Download your image, open LinkedIn, and attach it to a new post. You choose the caption and publish it there.';
     $('result-image-dialog').showModal();
   } catch {
     if (version === resultVersion) $('image-status').textContent = 'Couldn’t prepare the image. Please try again, or take a screenshot of the brain.';
   } finally {
-    $('share').textContent = 'Save result image';
+    $('share').textContent = 'Share on LinkedIn';
     $('share').disabled = busy || !imageResult;
   }
+});
+$('share-image-native').addEventListener('click', async () => {
+  if (!shareImageFile) return;
+  $('share-image-native').disabled = true;
+  $('share-image-status').textContent = '';
+  try {
+    // A fresh click preserves the user activation required by the device share menu.
+    await navigator.share({ files: [shareImageFile] });
+  } catch (error) {
+    if (error.name !== 'AbortError') $('share-image-status').textContent = 'Image sharing is unavailable here. Download the image and attach it on LinkedIn.';
+  } finally { $('share-image-native').disabled = false; }
 });
 $('close-image').addEventListener('click', () => $('result-image-dialog').close());
 $('publish').addEventListener('click', async () => {
