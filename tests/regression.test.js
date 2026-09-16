@@ -379,7 +379,7 @@ test('the original two-emoji post plus a tiny percentage activates sight and bit
 });
 
 
-test('the launch post activates bitter from neuron and synapse counts', async () => {
+test('the developed launch post activates all five senses and reaches 100', async () => {
   const text = `I hooked up a fruit fly brain to judge LinkedIn posts 🪰
 
 Google and HHMI Janelia released a full wiring map of a fly's nervous system: 166,000 neurons and 125 million synapses.
@@ -399,4 +399,11 @@ I ran this post through it. The fly went nuts.
 Have it rate your posts here: brainrotposts.com`;
   const senses = Array.from(await scoring().sampleSenses(text));
   assert.deepEqual(senses.sort(), ['bitter', 'sight', 'smell', 'sound', 'sugar']);
+  assert.equal(await scoring().evaluate(text), 100);
+});
+
+
+test('five senses do not lift a short post past its length cap', () => {
+  const stim = Object.fromEntries(['sugar', 'bitter', 'smell', 'sound', 'sight'].map(ch => [ch, ['neuron']]));
+  assert.ok(scoring().scoreRun({ n_active: 4000, mn9: 100, stim }, 'Humbled to announce my incredible journey. Agree? Delve into this seamless tapestry.') <= 25);
 });

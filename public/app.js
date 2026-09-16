@@ -117,11 +117,12 @@ function rotScore(run, text) {
   const { hits } = sense(text);
   const words = text.toLowerCase().match(/[\p{L}\p{N}']+/gu) || [];
   const effectiveWords = Math.min(words.length, new Set(words).size * 2.5);
-  const lengthCap = effectiveWords < 25 ? 25 : effectiveWords < 60 ? 40 : effectiveWords < 100 ? 65 : effectiveWords < 140 ? 85 : effectiveWords < 180 ? 95 : 100;
+  const sensesCount = Object.keys(CH).filter(ch => run.stim[ch]?.length).length;
+  // A developed post covering all five senses can qualify without padding to 180 words.
+  const lengthCap = sensesCount === 5 && effectiveWords >= 100 ? 100 : effectiveWords < 25 ? 25 : effectiveWords < 60 ? 40 : effectiveWords < 100 ? 65 : effectiveWords < 140 ? 85 : effectiveWords < 180 ? 95 : 100;
   const patterns = new Set([...hits.sugar, ...hits.smell].map(h => h.label)).size;
   const patternCap = Math.min(100, 20 + patterns * 16);
   const response = run.n_active > MELTDOWN ? 100 : Math.min(100, Math.round(run.mn9 * 1.25));
-  const sensesCount = Object.keys(CH).filter(ch => run.stim[ch]?.length).length;
   const sensesCap = [0, 65, 79, 89, 95, 100][sensesCount];
   return Math.min(response, lengthCap, patternCap, sensesCap);
 }
