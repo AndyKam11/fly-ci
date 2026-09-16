@@ -496,6 +496,10 @@ $('experiment').addEventListener('click', () => {
 });
 
 document.querySelector('.nav-hall').addEventListener('click', () => { $('hall-x').focus({ preventScroll: true }); });
+document.querySelector('.nav-about').addEventListener('click', () => {
+  $('about-x').open = true; $('about-x').focus({ preventScroll: true });
+});
+
 let voted = new Set(); try { voted = new Set(JSON.parse(localStorage.getItem('rot-votes') || '[]')); } catch (e) {}
 async function loadHall() {
   try {
