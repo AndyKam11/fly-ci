@@ -29,6 +29,7 @@ const BAIT = [
   { ch: 'sugar', label: 'engagement bait', w: 10, cap: 30, re: /\b(agree|thoughts|am i wrong|who else|who'?s with me|what would you do)\s*\?|let that sink in|read that again|that'?s (it\.? )?that'?s the (post|tweet)|comment\s+["'“]?[\w!]+["'”]?\s+(and|&)\s+i'?ll|dm me|link in (the )?comments|repost|follow (me )?for more|save this|share this|\u{267B}|\u{1F447}/giu },
   { ch: 'sugar', label: 'hot take', w: 8, cap: 16, re: /\b(unpopular opinion|hot take|controversial|nobody talks about|not gonna lie|i'?m not going to lie|here'?s the (thing|truth)|the truth is|plot twist|spoiler)\b/gi },
   { ch: 'sugar', label: 'origin story', w: 8, cap: 16, re: /\b(\d+|two|three|five|ten) (years|months|days) ago\b|\bi (got|was) (rejected|fired|laid off)\b|\bi quit\b|\bfrom .{3,30} to .{3,30}\b/gi },
+  { ch: 'sugar', label: 'business lesson pivot', w: 12, cap: 24, re: /\b(?:what\s+(?:[a-z]+\s+){0,4}(?:taught|tought|teach(?:es)?|learned)\s+(?:me\s+)?about|(?:taught|tought)\s+me\s+about)\s+(?:b2b\s+)?(?:sales|marketing|leadership|business|entrepreneurship|management|hiring|fundraising|startups?)\b/gi },
   { ch: 'sugar', label: 'linkedin about linkedin', w: 12, cap: 12, re: /\blinkedin\b/gi },
   { ch: 'sugar', label: 'hashtags', w: 2, cap: 10, re: /#\w+/g },
   { ch: 'smell', label: 'AI vocabulary', w: 6, cap: 36, re: W(['delve','tapestry','testament','underscore','vibrant','crucial','pivotal','landscape','meticulous','intricate','intricacies','enduring','garner','bolster','interplay','boast','robust','groundbreaking','renowned','nestled','showcase','foster','cultivate','enhance','harness','seamless','cutting.?edge','ever.?evolving','realm','navigate','navigating','embark','unlock','empower','elevate','profound','invaluable','insight','insights','deep dive','resonate','align','transformative','innovative','innovation','holistic','paradigm','leverage','streamline','optimize','unleash','supercharge','revolutionize','reimagine','redefine','multifaceted','nuanced','comprehensive','dynamic','emphasize','highlight','spotlight','commitment','excellence','exemplify','encompass','fast.?paced','moving forward','at the end of the day','in today','it.?s important to note','let.?s dive in','key takeaway','in conclusion','furthermore','moreover','additionally','ultimately']) },
@@ -76,7 +77,7 @@ function sense(text) {
     bitter: (b < 24 || b < s) ? 0 : b < 40 ? 1 : b < 60 ? 2 : 3,
     smell:  pts.smell < 6 ? 0 : pts.smell < 22 ? 1 : 2,
     sound:  pts.sound >= 6 ? 1 : 0,
-    sight:  pts.sight >= 6 ? 1 : 0,
+    sight:  pts.sight >= 4 ? 1 : 0,
   };
   if (!Object.values(levels).some(Boolean)) levels.sugar = 1;   // the fly at least licks it
   return { pts, hits, levels };
@@ -483,7 +484,7 @@ $('publish').addEventListener('click', async () => {
 });
 
 const EXPERIMENTS = {
-  sight: 'Try two emojis or a few bullet points. These stimulate the fly’s visual inputs.',
+  sight: 'Try an emoji or a few bullet points. These stimulate the fly’s visual inputs.',
   sound: 'Try THREE EXCLAMATION MARKS!!! Shouting stimulates hearing inputs in the antennae.',
   smell: 'Try a word like “delve” or “tapestry”. AI-style language stimulates smell inputs.',
   sugar: 'Try “Humbled to announce” or “Agree?”. Engagement bait stimulates sugar-sensing neurons.',

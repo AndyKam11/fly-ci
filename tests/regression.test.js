@@ -156,7 +156,7 @@ test('result prompts track actual senses; editing preserves the last result', as
   assert.equal(element('score').textContent, 25);
   assert.equal(element('publish').disabled, false);
   assert.equal(requests.filter(r => r.url === '/api/publish').length, 0);
-  assert.match(element('experiment-hint').textContent, /two emojis/);
+  assert.match(element('experiment-hint').textContent, /an emoji/);
   assert.match(element('explore-title').textContent, /1\/5 senses/);
   element('post').handlers.input();
   assert.equal(element('post').value, 'I got rejected. Then I tried again. Agree?');
@@ -191,7 +191,7 @@ test('sense count belongs to the current post and buttons explain inactive sense
   assert.match(element('explore-title').textContent, /1\/5 senses/);
   const sight = element('sense-progress').children[4];
   sight.handlers.focus();
-  assert.match(element('experiment-hint').textContent, /Not activated.*two emojis/);
+  assert.match(element('experiment-hint').textContent, /Not activated.*an emoji/);
 });
 
 
@@ -333,4 +333,21 @@ test('LinkedIn sharing hands off the PNG without a URL and waits for a separate 
   context.navigator.share = async () => { throw new Error('unavailable'); };
   await element('share-image-native').handlers.click();
   assert.match(element('share-image-status').textContent, /Download the image/);
+});
+
+
+const FRUIT_FLY_SALES = 'ANYONE LISTENING?!\n\nI I have written 8321934 paragraphs about the reproductive cycle of the fruit fly.\n\nHere is what it tought me about B2B Sales 🤩';
+test('the fruit fly sales pivot activates sugar, hearing and sight without an elite score', async () => {
+  const s = scoring();
+  for (const text of [FRUIT_FLY_SALES, FRUIT_FLY_SALES.replace('tought', 'taught')]) {
+    assert.deepEqual(Array.from(await s.sampleSenses(text)).sort(), ['sight', 'sound', 'sugar']);
+    const score = await s.evaluate(text);
+    assert.ok(score > 0 && score <= 40, `Expected a modest score, got ${score}`);
+  }
+});
+test('one emoji activates sight without manufacturing sugar or a high score', async () => {
+  const s = scoring();
+  assert.deepEqual(Array.from(await s.sampleSenses('A fruit fly 🤩')), ['sight']);
+  assert.ok(await s.evaluate('A fruit fly 🤩') <= 25);
+  assert.ok(await s.evaluate('Here is what it taught me about the reproductive cycle of the fruit fly.') <= 25);
 });
