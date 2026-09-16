@@ -1,0 +1,180 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import { createHash } from 'node:crypto';
+import rate from '../api/rate.js';
+import publish from '../api/publish.js';
+import top from '../api/top.js';
+
+const source = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+function scoring() {
+  const context = vm.createContext({ fetch: async path => ({ json: async () => JSON.parse(fs.readFileSync(new URL('../public/' + path, import.meta.url), 'utf8')) }) });
+  vm.runInContext(source.slice(source.indexOf('const MN9'), source.indexOf('// ---------- neuroglancer')) + source.slice(source.indexOf('const SAMPLES'), source.indexOf('let sampleIdx')) + ';globalThis.samples = SAMPLES; globalThis.evaluate = async text => rotScore((await pickRun(text)).run, text);', context);
+  return context;
+}
+test('every sample scores below 100 with the real simulation data', async () => {
+  const s = scoring();
+  for (const text of s.samples) {
+    const result = await s.evaluate(text);
+    assert.ok(result >= 0 && result < 100, `${text.slice(0, 40)} scored ${result}`);
+  }
+});
+const SLOP = `Humbled and grateful to announce a pivotal milestone in my incredible journey. Three years ago I got rejected by every investor in town. Today our visionary community is transforming the landscape through seamless innovation and authentic leadership. Let that sink in.
+
+Here is what nobody talks about: your network is your net worth. Every closed door is simply an invitation to build a bigger house. I woke up before sunrise, wrote my intentions, looked in the mirror, and chose abundance over fear. This is the secret blueprint that separates ordinary people from extraordinary founders.
+
+We are not just building a company but also cultivating a movement. Delve into the tapestry of transformative growth and you will discover a testament to resilience. My team taught me that passion beats perfection, purpose beats profit, and vulnerability unlocks limitless potential. The next chapter belongs to those brave enough to dream without permission.
+
+Hot take: success is never about the destination. It is about showing up when nobody is watching, celebrating every tiny victory, and turning your deepest setbacks into your greatest superpowers. I am thrilled to share this playbook with everyone who believed in our vision from the beginning. We rise by lifting others. Agree? Repost to inspire your network. #mindset #founders #journey 🚀🔥`;
+test('sustained varied slop can still reach 100', async () => {
+  assert.equal(await scoring().evaluate(SLOP), 100);
+});
+test('short bait and short AI vocabulary cannot earn elite scores', async () => {
+  for (const text of ['I got rejected. Then I tried again. Agree?', 'Delve into a seamless tapestry of transformative innovation. Leverage this pivotal paradigm.']) {
+    assert.ok(await scoring().evaluate(text) <= 25);
+  }
+});
+test('repetition cannot pad a short post into an elite score', async () => {
+  assert.ok(await scoring().evaluate('Humbled to announce my incredible journey. Agree? '.repeat(50)) <= 40);
+});
+test('length alone does not turn substance into elite slop', async () => {
+  assert.ok(await scoring().evaluate(('We measured API latency across 200 calls because the SQL query was slow. However the index reduced execution time from 90 ms to 40 ms. ').repeat(12)) < 40);
+});
+
+function response() {
+  return { code: 200, headers: {}, setHeader(k, v) { this.headers[k] = v; }, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; }, end() { return this; } };
+}
+function setup(t, fetch) {
+  t.mock.method(globalThis, 'fetch', fetch);
+  for (const [key, value] of Object.entries({ SUPABASE_URL: 'https://database.example', SUPABASE_SERVICE_KEY: 'test-only' })) {
+    const old = process.env[key]; process.env[key] = value;
+    t.after(() => { if (old === undefined) delete process.env[key]; else process.env[key] = old; });
+  }
+}
+test('scoring ignores caller consent, saves privately, and returns an ownership receipt', async t => {
+  let row;
+  setup(t, async (url, opts) => {
+    if (opts.method === 'POST') { row = JSON.parse(opts.body); return { ok: true, json: async () => [{ id: 42 }] }; }
+    return { headers: { get: () => '0-0/2' } };
+  });
+  const res = response();
+  await rate({ method: 'POST', body: { post: 'My post', is_public: true }, headers: {} }, res);
+  assert.equal(row.is_public, false);
+  assert.equal(res.body.id, 42);
+  assert.match(res.body.token, /^[a-f0-9]{64}$/);
+  assert.equal(row.publish_token_hash, createHash('sha256').update(res.body.token).digest('hex'));
+  assert.equal(row.token, undefined);
+});
+test('publishing requires both the result ID and its receipt', async t => {
+  let requested = false;
+  setup(t, async (url, opts) => {
+    requested = true;
+    assert.ok(url.includes('id=eq.42&publish_token_hash=eq.' + createHash('sha256').update('a'.repeat(64)).digest('hex')));
+    assert.deepEqual(JSON.parse(opts.body), { is_public: true });
+    return { ok: true, json: async () => [{ id: 42 }] };
+  });
+  const invalid = response();
+  await publish({ method: 'POST', body: { id: 42 } }, invalid);
+  assert.equal(invalid.code, 400); assert.equal(requested, false);
+  const valid = response();
+  await publish({ method: 'POST', body: { id: 42, token: 'a'.repeat(64) } }, valid);
+  assert.equal(valid.body.ok, true);
+});
+test('wrong ownership receipt cannot publish a result', async t => {
+  setup(t, async () => ({ ok: true, json: async () => [] }));
+  const res = response();
+  await publish({ method: 'POST', body: { id: 42, token: 'b'.repeat(64) } }, res);
+  assert.equal(res.code, 404); assert.equal(res.body.ok, false);
+});
+test('hall filters both rankings by explicit consent', async t => {
+  let calls = 0;
+  setup(t, async url => {
+    assert.equal(new URL(url).searchParams.get('is_public'), 'eq.true'); calls++;
+    return { ok: true, json: async () => [] };
+  });
+  const res = response(); await top({}, res);
+  assert.equal(calls, 2); assert.equal(res.code, 200);
+});
+test('hall fails closed if database has not migrated', async t => {
+  setup(t, async () => ({ ok: false }));
+  const res = response(); await top({}, res);
+  assert.equal(res.code, 500); assert.deepEqual(res.body.top, []);
+});
+
+function ui() {
+  const elements = new Map();
+  const element = key => {
+    if (!elements.has(key)) elements.set(key, {
+      value: '', hidden: true, disabled: false, textContent: '', dataset: {}, handlers: {},
+      style: { setProperty() {} }, classList: { add() {}, remove() {}, toggle() {} },
+      addEventListener(event, fn) { this.handlers[event] = fn; },
+      replaceChildren(...children) { this.children = children; },
+      setAttribute() {}, appendChild() {}, querySelectorAll() { return []; }, focus() {}, setSelectionRange() {}, scrollIntoView() {},
+    });
+    return elements.get(key);
+  };
+  const layer = { displayState: { segmentationGroupState: { value: { visibleSegments: new Set() } }, segmentationColorGroupState: { value: { segmentStatedColors: new Map() } } } };
+  element('ng').contentWindow = { viewer: { state: { restoreState() {} }, layerManager: { getLayerByName: () => ({ layer }) } } };
+  const requests = [];
+  let clock = 0;
+  const context = vm.createContext({
+    document: { getElementById: element, querySelector: element, createElement: () => element(Symbol()) },
+    window: { matchMedia: () => ({ matches: false }), scrollTo() {} },
+    location: { origin: 'http://localhost', search: '' },
+    localStorage: { getItem: () => null },
+    setTimeout: fn => { fn(); return 0; }, clearTimeout() {}, setInterval() {}, clearInterval() {},
+    performance: { now: () => (clock += 1000) },
+    fetch: async (url, opts) => {
+      if (url.startsWith('runs/')) return { json: async () => JSON.parse(fs.readFileSync(new URL('../public/' + url, import.meta.url))) };
+      requests.push({ url, opts });
+      return { ok: true, json: async () => url === '/api/top' ? { top: [], bottom: [] } : opts?.method === 'POST' ? { ok: true, id: requests.length, token: 'a'.repeat(64), count: 2 } : { count: 1 } };
+    },
+  });
+  vm.runInContext(source.replace('loadHall();\n})();', 'loadHall(); globalThis.feed = feed;\n})();'), context);
+  return { context, element, requests };
+}
+const settle = () => new Promise(resolve => setImmediate(resolve));
+test('result prompts track actual senses; editing keeps the post and resets consent', async () => {
+  const { context, element, requests } = ui();
+  element('post').value = 'I got rejected. Then I tried again. Agree?';
+  await context.feed(); await settle();
+  assert.equal(element('score').textContent, 25);
+  assert.equal(element('publish').disabled, false);
+  assert.equal(requests.filter(r => r.url === '/api/publish').length, 0);
+  assert.match(element('experiment-hint').textContent, /two emojis/);
+  assert.match(element('explore-title').textContent, /1\/5 senses/);
+  element('experiment').handlers.click();
+  assert.equal(element('post').value, 'I got rejected. Then I tried again. Agree?');
+  assert.equal(element('publish').disabled, true);
+  element('post').value += ' 🎉🎉';
+  await context.feed(); await settle();
+  assert.match(element('explore-title').textContent, /2\/5 senses/);
+  assert.match(element('experiment-hint').textContent, /EXCLAMATION/);
+  await element('publish').handlers.click();
+  assert.equal(requests.filter(r => r.url === '/api/publish').length, 1);
+  assert.equal(element('publish').textContent, 'Added to Hall of Rot');
+  assert.equal(element('publish').disabled, true);
+});
+test('a delayed save response cannot enable publishing a result after editing', async () => {
+  const { context, element } = ui();
+  element('post').value = 'Today I fixed a bug.';
+  await context.feed();
+  element('experiment').handlers.click();
+  await settle();
+  assert.equal(element('publish').disabled, true);
+});
+
+test('sense count belongs to the current post and buttons explain inactive senses', async () => {
+  const { context, element } = ui();
+  element('post').value = 'I got rejected. Then I tried again. Agree? 🎉🎉';
+  await context.feed(); await settle();
+  assert.match(element('explore-title').textContent, /2\/5 senses/);
+  element('experiment').handlers.click();
+  element('post').value = 'Today I fixed a bug.';
+  await context.feed(); await settle();
+  assert.match(element('explore-title').textContent, /1\/5 senses/);
+  const sight = element('sense-progress').children[4];
+  sight.handlers.focus();
+  assert.match(element('experiment-hint').textContent, /Not activated.*two emojis/);
+});

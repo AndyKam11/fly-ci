@@ -22,11 +22,14 @@
 <main class="wrap">
   <header class="top">
     <div class="wordmark">BRAIN<span>ROT</span></div>
+    <nav aria-label="Main"><a class="nav-hall" href="#hall-x">🏆 Hall of Rot</a></nav>
     <p class="tag">Paste a LinkedIn post. A real fruit fly brain rates it.<br><b>The shittier the post, the more the fly loves it.</b></p>
   </header>
 
+  <p class="challenge">Can you hit <strong>100% brain rot?</strong></p>
   <section class="lab">
   <div class="stage">
+    <div class="brain-caption"><span>Fruit fly brain · 139,255 neurons</span><details><summary aria-label="About the brain">ⓘ</summary><p>A real brain reconstruction. Colours show neurons firing in the simulation. Only active pathways light up; the outline shows the whole brain.</p></details></div>
     <iframe id="ng" src="ng/embed.html" title="Fly brain" loading="eager"></iframe>
     <div class="hud"><span class="dot"></span><span id="phase">139,255 neurons · idle</span></div>
     <div class="meter" aria-hidden="true"><div id="meterfill"></div></div>
@@ -43,22 +46,35 @@
   </div>
 
     <form class="feedbox" id="feedbox" autocomplete="off">
-      <textarea id="post" rows="6" spellcheck="false" placeholder="Paste a LinkedIn post. The fly decides if it's a shitpost." aria-label="Your LinkedIn post"></textarea>
+      <textarea id="post" rows="6" maxlength="6000" spellcheck="false" placeholder="Paste a LinkedIn post. The fly decides if it's a shitpost." aria-label="Your LinkedIn post"></textarea>
       <div class="row">
         <button id="go" class="btn" type="submit">Feed the fly</button>
         <button id="sample" class="btn ghost" type="button">try a sample</button>
       </div>
+      <p class="privacy-note">Scored posts are saved. Only posts you choose to add appear publicly.</p>
     </form>
   </section>
 
   <section id="verdict" class="verdict" hidden>
     <div class="v-title" id="v-title"></div>
+    <section class="verdict-senses" aria-labelledby="explore-title">
+      <h2 id="explore-title">You lit up 0/5 senses</h2>
+      <p class="sense-help">Hover or tap a sense to explore. More senses ≠ more rot.</p>
+      <div id="sense-progress" class="sense-progress" aria-label="Senses activated by this post"></div>
+      <p id="experiment-hint" aria-live="polite"></p>
+      <div class="row"><button id="experiment" class="btn" type="button">Edit your post · light up another sense</button><button id="next-hint" class="btn ghost" type="button">Another idea</button></div>
+    </section>
+
     <div class="pct" id="pct"></div>
     <div class="tele" id="tele"></div>
     <div class="row center">
       <button id="copy" class="btn" type="button">Copy verdict</button>
       <a id="share" class="btn ghost" target="_blank" rel="noopener">Share on LinkedIn</a>
       <button id="again" class="btn ghost" type="button">Feed it another</button>
+    </div>
+    <div class="hall-opt-in">
+      <button id="publish" class="btn ghost" type="button" disabled>Add to Hall of Rot</button>
+      <p id="publish-status" class="privacy-note" role="status">Makes your post public. Optional, every time.</p>
     </div>
     <details class="x" id="senses-x">
       <summary>how did the fly read this post?</summary>
@@ -67,6 +83,11 @@
     </details>
   </section>
 
+  <section class="hall-section" id="hall-x" aria-labelledby="hall-title" tabindex="-1">
+    <h2 id="hall-title">🏆 Hall of Rot</h2>
+    <p class="privacy-note">Voluntarily submitted. Judged by a fly. Can you beat them?</p>
+    <div id="hall" class="hall" aria-live="polite">loading…</div>
+  </section>
   <footer class="foot">
     <details class="x">
       <summary>how does a post become a taste?</summary>
@@ -78,13 +99,9 @@
         <div class="lg" style="--c:#e8f4ff"><b>👁 Sight</b> — emoji, bullet points, arrows, ticks. Goes to 800 photoreceptors. The optic lobes light up. The fly sees your post. It does not read it.</div>
       </div>
     </details>
-    <details class="x" id="hall-x">
-      <summary>hall of rot</summary>
-      <div id="hall" class="hall">loading…</div>
-    </details>
     <details class="x">
       <summary>wait, is this real?</summary>
-      <p>Yes. <a href="https://flywire.ai" target="_blank" rel="noopener">FlyWire</a> mapped every neuron in an adult fruit fly brain; <a href="https://www.nature.com/articles/s41586-024-07763-9" target="_blank" rel="noopener">Shiu et al. (Nature 2024)</a> turned that wiring diagram into a working simulation of all 139,255 neurons. We ran that simulation ~1,000 times with every combination of the five senses above stimulated at different strengths, and your post picks the run that matches what it tastes, smells, sounds and looks like. The verdict is MN9, the motor neuron that extends the fly's proboscis: sugar drives it, bitter suppresses it — both validated results of the paper. The 3D view is the real reconstruction, showing the neurons that actually fired, in spike order, coloured by which sense they came from. Neuron names like <em>bluebell</em> and <em>good_dog</em> are the paper's real nicknames. Posts are logged, because somebody has to keep a record of the shitposts.</p>
+      <p>Yes. <a href="https://flywire.ai" target="_blank" rel="noopener">FlyWire</a> mapped every neuron in an adult fruit fly brain; <a href="https://www.nature.com/articles/s41586-024-07763-9" target="_blank" rel="noopener">Shiu et al. (Nature 2024)</a> turned that wiring diagram into a working simulation of all 139,255 neurons. We ran that simulation ~1,000 times with every combination of the five senses above stimulated at different strengths, and your post picks the run that matches what it tastes, smells, sounds and looks like. The simulation measures MN9, the motor neuron that extends the fly's proboscis: sugar drives it, bitter suppresses it — both validated results of the paper. Brain rot is our game score: the simulated response is capped by the length, vocabulary variety and mix of bait patterns in your post. Short bait can light up the brain without earning a top score. The 3D view is the real reconstruction, showing the neurons that actually fired, in spike order, coloured by which sense they came from. Neuron names like <em>bluebell</em> and <em>good_dog</em> are the paper's real nicknames. Scored posts are saved privately. A post only appears in the Hall of Rot when its submitter chooses to add it.</p>
       <p class="credits">Built by <a href="https://www.linkedin.com/in/franz-josef-schrepf/" target="_blank" rel="noopener">Franz Schrepf</a> · Connectome: FlyWire v783 · Model: <a href="https://github.com/philshiu/Drosophila_brain_model" target="_blank" rel="noopener">philshiu/Drosophila_brain_model</a> · Viewer: <a href="https://github.com/google/neuroglancer" target="_blank" rel="noopener">Neuroglancer</a> · <a href="https://github.com/Franz23/brainrot" target="_blank" rel="noopener">Source</a></p>
     </details>
     <div class="count" id="count"></div>

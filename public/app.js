@@ -106,18 +106,30 @@ async function pickRun(text) {
 }
 
 // ---------- verdicts: run → [title, fly state, bubble] ----------
-function verdictFor(run) {
-  const m = run.mn9;
-  if (run.n_active > MELTDOWN) return ['BRAIN MELTDOWN. ' + run.n_active.toLocaleString() + ' neurons on fire. This smells like ChatGPT.', 'melt', '🤯 what IS this'];
-  if (m === 0)  return ['Zero rot. Not a shitpost. The fly walked away.',    'dead', 'ew. substance.'];
-  if (m < 10)   return ['Barely rotten. The fly sniffed it and left.',        'gone', 'meh. not shitty enough.'];
-  if (m < 25)   return ['Mildly rotten. A polite nibble.',                    'meh',  'hm. a little sugar.'];
-  if (m < 45)   return ['Rotten. Proboscis extended.',                        'love', 'ooh. SUGAR.'];
-  if (m < 65)   return ['Very rotten. The fly is feasting on this shitpost.', 'love', 'NOM NOM NOM'];
-  return            ['CERTIFIED SHITPOST. The fly is licking the screen.',    'love', 'SUGARRRR 🤤'];
+// Rot is a game score: the simulated response is capped by sustained, varied slop.
+// Repeating a small vocabulary cannot manufacture the length needed for a top score.
+function rotScore(run, text) {
+  const { hits } = sense(text);
+  const words = text.toLowerCase().match(/[\p{L}\p{N}']+/gu) || [];
+  const effectiveWords = Math.min(words.length, new Set(words).size * 2.5);
+  const lengthCap = effectiveWords < 25 ? 25 : effectiveWords < 60 ? 40 : effectiveWords < 100 ? 65 : effectiveWords < 140 ? 85 : effectiveWords < 180 ? 95 : 100;
+  const patterns = new Set([...hits.sugar, ...hits.smell].map(h => h.label)).size;
+  const patternCap = Math.min(100, 20 + patterns * 16);
+  const response = run.n_active > MELTDOWN ? 100 : Math.min(100, Math.round(run.mn9 * 1.25));
+  return Math.min(response, lengthCap, patternCap);
 }
-const rotScore = run => run.n_active > MELTDOWN ? 100 : Math.min(100, Math.round(run.mn9 * 1.25));
-const tierOf = run => run.n_active > MELTDOWN ? 6 : run.mn9 === 0 ? 0 : run.mn9 < 10 ? 1 : run.mn9 < 25 ? 2 : run.mn9 < 45 ? 3 : run.mn9 < 65 ? 4 : 5;
+const tierOf = (run, score) => score === 100 && run.n_active > MELTDOWN ? 6 : score === 0 ? 0 : score < 20 ? 1 : score < 40 ? 2 : score < 65 ? 3 : score < 90 ? 4 : 5;
+function verdictFor(run, score) {
+  return [
+    ['Zero rot. Not a shitpost. The fly walked away.', 'dead', 'ew. substance.'],
+    ['Barely rotten. The fly sniffed it and left.', 'gone', 'meh. not shitty enough.'],
+    ['Mildly rotten. A polite nibble.', 'meh', 'hm. a little sugar.'],
+    ['Rotten. Proboscis extended.', 'love', 'ooh. SUGAR.'],
+    ['Very rotten. The fly is feasting on this shitpost.', 'love', 'NOM NOM NOM'],
+    ['CERTIFIED SHITPOST. The fly is licking the screen.', 'love', 'SUGARRRR 🤤'],
+    ['BRAIN MELTDOWN. Peak self-indulgent slop.', 'melt', '🤯 what IS this'],
+  ][tierOf(run, score)];
+}
 
 // ---------- neuroglancer control (same-origin iframe) ----------
 const ng = document.getElementById('ng');
@@ -129,13 +141,13 @@ function qmul(a, b) { const [ax, ay, az, aw] = a, [bx, by, bz, bw] = b;
 function baseState() {
   return {
     dimensions: { x: [1.6e-8, 'm'], y: [1.6e-8, 'm'], z: [4e-8, 'm'] },
-    position: [34000, 19000, 3000], projectionScale: 40000, projectionOrientation: Q0,
+    position: [34000, 19000, 3000], projectionScale: 50000, projectionOrientation: Q0,
     showAxisLines: false, showDefaultAnnotations: false, showScaleBar: false, showSlices: false,
     projectionBackgroundColor: '#07070c', layout: '3d',
     // neurons first: the viewer takes its voxel grid (16 nm) from the first layer; the brain mesh is 4096 nm
     layers: [
       { type: 'segmentation', source: SRC_NEURONS, name: 'neurons', segments: [], segmentColors: {}, pick: false, selectedAlpha: 0 },
-      { type: 'segmentation', source: SRC_BRAIN, name: 'brain', segments: ['1'], segmentColors: { '1': '#7d8aa6' }, objectAlpha: 0.11, pick: false, selectedAlpha: 0 },
+      { type: 'segmentation', source: SRC_BRAIN, name: 'brain', segments: ['1'], segmentColors: { '1': '#7d8aa6' }, objectAlpha: 0.2, pick: false, selectedAlpha: 0 },
     ],
   };
 }
@@ -146,21 +158,26 @@ function setSegments(ids) { const L = neuronsLayer(); if (!L) return; const vis 
 function setColors(colors) { const L = neuronsLayer(); if (!L) return; const map = L.displayState.segmentationColorGroupState.value.segmentStatedColors; for (const id in colors) { const k = BigInt(id); map.delete(k); map.set(k, pack(colors[id])); } }
 let orbitAngle = 0, orbitPausedUntil = 0, orbitSpeed = 0.004;
 function tickOrbit() {
-  const v = V(); if (!v || Date.now() < orbitPausedUntil) return;
+  const v = V(); if (!v || Date.now() < orbitPausedUntil || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   orbitAngle += orbitSpeed;
-  const q = qmul([0, Math.sin(orbitAngle / 2), 0, Math.cos(orbitAngle / 2)], Q0);
+  const sway = Math.sin(orbitAngle) * 0.3;
+  const q = qmul([0, Math.sin(sway / 2), 0, Math.cos(sway / 2)], Q0);
   const o = v.perspectiveNavigationState.pose.orientation; o.orientation.set(q); o.changed.dispatch();
 }
+let initializedViewer = null, orbitTimer;
 function initViewer() {
   const v = V(); if (!v || !v.state) { setTimeout(initViewer, 150); return; }
-  const st = baseState(); if (ng.clientWidth < 600) st.projectionScale = 64000;   // phones: keep the whole brain in frame
+  if (initializedViewer === v) return;
+  initializedViewer = v;
+  const st = baseState(); if (ng.clientWidth < 600) st.projectionScale = 82000;   // phones: keep the whole brain in frame
   v.state.restoreState(st);
   try { const d = ng.contentWindow.document;
     d.addEventListener('pointerdown', () => { orbitPausedUntil = Date.now() + 15000; }, true);
     d.addEventListener('wheel', () => { orbitPausedUntil = Date.now() + 15000; }, true); } catch (e) {}
-  setInterval(tickOrbit, 40);
+  clearInterval(orbitTimer); orbitTimer = setInterval(tickOrbit, 40);
 }
 ng.addEventListener('load', initViewer);
+initViewer(); // The cached iframe may have loaded before this script attached its listener.
 if (location.search.includes('og=1')) {                      // share-image mode
   document.body.classList.add('og');
   document.querySelector('.stage').insertAdjacentHTML('beforeend', '<div class="ogmark">BRAIN <span>ROT</span></div><div class="ogtag">A real fruit fly brain rates your LinkedIn post.<br><b>The shittier the post, the more it loves it.</b></div>');
@@ -215,19 +232,21 @@ const sfx = {
 // ---------- UI ----------
 const $ = id => document.getElementById(id);
 const post = $('post'), go = $('go'), phase = $('phase'), dot = document.querySelector('.dot'), meter = $('meterfill');
-let busy = false;
+let busy = false, resultVersion = 0, publication = null;
+let lastText = '';
 fetch('/api/rate').then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} shitposts fed to the fly so far`; }).catch(() => {});
 
 const SAMPLES = [
-  `I got rejected by 47 investors.\n\nThen one said yes.\n\nHere's what I learned about resilience 👇\n\n→ Rejection is redirection.\n→ Your network is your net worth.\n→ Consistency > talent. Every. Single. Time.\n\n3 years ago I was sleeping on a couch. Today we're a team of 12.\n\nNot because I'm special. Because I didn't quit.\n\nLet that sink in.\n\nHumbled to announce we just closed our Series A 🚀\n\nAgree? Repost ♻️ to help someone who needs this today.\n\n#founders #startups #mindset #AI`,
+  `I got rejected. Then I tried again. Agree?`,
   `Humbled to announce I've updated my LinkedIn profile once again. 🙏\n\nThis journey hasn't been easy. But I couldn't have done it without every single one of you.\n\nHere's to the next chapter 🚀\n\n#grateful #newbeginnings`,
-  `In today's fast-paced landscape, partnerships are not just a channel — they're a testament to a company's commitment to excellence. By leveraging cutting-edge tools and fostering meaningful relationships, teams can navigate the complexities of go-to-market and unlock transformative growth.\n\nIt's not about the deal. It's about the journey.\n\nKey takeaways:\n• Embrace innovation\n• Cultivate synergy\n• Elevate your mindset`,
+  `We should delve into this idea.`,
   `WE DID IT!!! 🎉🎉🎉\n\n1 MILLION USERS!!!\n\nTo everyone who said it couldn't be done: LOOK AT US NOW!!! 🚀🔥💪\n\nLET'S GOOOO!!!`,
   `We spent six months trying to sell our analytics product to mid-market retailers and closed nothing. The pattern in the lost deals was consistent: the person who wanted the product wasn't the person who owned the budget, and we never got a meeting with the second person.\n\nWhat changed things was boring. We rewrote the first call to end with one question: who else needs to be in the next conversation? Half the time the answer was the CFO. We stopped pitching until they were in the room. Cycle time went from 90 days to 40, and we closed four of the next nine.`,
 ];
 let sampleIdx = 0;
-$('sample').addEventListener('click', () => { post.value = SAMPLES[sampleIdx++ % SAMPLES.length]; softReset(); post.focus(); preload(); });
+$('sample').addEventListener('click', () => { if (busy) return; awaitingNew = false; go.textContent = 'Feed the fly'; post.value = SAMPLES[sampleIdx++ % SAMPLES.length]; softReset(); post.focus(); preload(); });
 function softReset() {
+  resultVersion++; publication = null; $('publish').disabled = true;
   $('stamp').hidden = true; $('verdict').hidden = true; $('senses').hidden = true;
   fly('idle'); setSegments([]); phase.textContent = '139,255 neurons · idle'; dot.classList.remove('live'); meter.style.transform = 'scaleX(0)'; orbitSpeed = 0.004; $('key').hidden = true;
 }
@@ -252,10 +271,14 @@ async function feed(e) {
   if (!text) { post.focus(); return; }
   if (isLink(text)) { fly('idle', "that's a link. the fly can't click. paste the text."); post.focus(); return; }
   if (busy || !neuronsLayer()) return;
+  const version = ++resultVersion; publication = null; lastText = text;
+  $('publish').disabled = true; $('publish').textContent = 'Add to Hall of Rot';
+  $('publish-status').textContent = 'Makes your post public. Optional, every time.';
+  $('sample').disabled = true; post.readOnly = true;
   audio(); busy = true; go.disabled = true; $('verdict').hidden = true; $('stamp').hidden = true; $('senses').hidden = true;
   let picked;
   try { picked = await pickRun(text); }
-  catch (err) { busy = false; go.disabled = false; fly('idle', 'the brain is loading. try again in a sec.'); return; }
+  catch (err) { busy = false; go.disabled = false; $('sample').disabled = false; post.readOnly = false; fly('idle', 'the brain is loading. try again in a sec.'); return; }
   const { pts, hits, levels, run, seq, all } = picked;
   const melt = run.n_active > MELTDOWN;
   const colors = {}; all.forEach(id => colors[id] = DIM);
@@ -290,7 +313,8 @@ async function feed(e) {
     await sleep(90);
   }
   meter.style.transform = 'scaleX(1)';
-  const [title, state, say] = verdictFor(run);
+  const rot = rotScore(run, text);
+  const [title, state, say] = verdictFor(run, rot);
   if (run.mn9 > 0 && !melt) {
     phase.textContent = `PROBOSCIS EXTENSION · MN9 firing at ${run.mn9} Hz`;
     for (let k = 0; k < 4; k++) { setColors({ [MN9]: k % 2 ? '#ffe9a8' : WHITE }); await sleep(180); } setColors({ [MN9]: WHITE });
@@ -302,7 +326,7 @@ async function feed(e) {
   else { buzz(true); setTimeout(() => buzz(false), 900); }
 
   // ---------- verdict + explainers ----------
-  const rot = rotScore(run), pct = (run.n_active / N_NEURONS * 100).toFixed(2);
+  const pct = (run.n_active / N_NEURONS * 100).toFixed(2);
   $('score').textContent = rot; $('stamp').classList.toggle('low', rot < 30); $('stamp').classList.toggle('melt', melt); $('stamp').hidden = false; sfx.stamp();
   $('v-title').textContent = title;
   const regions = (run.regions || []).slice(0, 4).map(([r, n]) => `${n.toLocaleString()} ${r.replace(/_/g, ' ')}`).join(' · ');
@@ -320,7 +344,7 @@ async function feed(e) {
   }).join('');
   $('senses').hidden = false;
   const site = location.origin;
-  const shareUrl = `${site}/s?r=${rot}&t=${tierOf(run)}&m=${run.mn9}`;
+  const shareUrl = `${site}/s?r=${rot}&t=${tierOf(run, rot)}&m=${run.mn9}`;
   const copyText = `🪰 BRAIN ROT: ${rot}% — ${title}\n\nI fed my LinkedIn post to a simulated fruit fly brain (139,255 real neurons). ${melt ? `It triggered a runaway state in ${run.n_active.toLocaleString()} neurons.` : `The tongue motor neuron fired at ${run.mn9} Hz.`} Flies know a shitpost when they taste one.\n\n${shareUrl}`;
   $('copy').onclick = async () => { try { await navigator.clipboard.writeText(copyText); $('copy').textContent = 'Copied!'; setTimeout(() => $('copy').textContent = 'Copy verdict', 1500); } catch (e) { prompt('Copy this:', copyText); } };
   $('share').href = 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(shareUrl);
@@ -330,24 +354,94 @@ async function feed(e) {
                     dimensions: { x: [1.6e-8, 'm'], y: [1.6e-8, 'm'], z: [4e-8, 'm'] }, position: [34000, 19000, 3000], projectionScale: 50000, layout: '3d', showSlices: false };
   $('ng-link').href = 'https://neuroglancer-demo.appspot.com/#!' + encodeURIComponent(JSON.stringify(ngState));
   $('verdict').hidden = false;
+  showExperiment(run);
 
   fetch('/api/rate', { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ post: text, bait_score: pts.sugar, bait: Object.values(hits).flat().map(h => h.label), rate: SUGAR_L[levels.sugar], run: run.k, mn9: run.mn9, fly_score: rot,
                            levels, n_active: run.n_active }) })
     .then(r => r.ok ? r.json() : null).then(d => {
+      if (version !== resultVersion) return;
+      if (d?.ok && d.id && d.token) { publication = { id: d.id, token: d.token }; $('publish').disabled = false; }
+      else $('publish-status').textContent = 'Could not save this result. Feed the fly again to submit it.';
       if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} shitposts fed to the fly so far`;
       if (d && d.percentile != null && d.count > 20) $('pct').textContent = rot === 0 ? `Less rotten than ${100 - d.percentile}% of posts fed to the fly.` : `Shittier than ${d.percentile}% of posts fed to the fly.`;
-    }).catch(() => {});
-  busy = false; go.disabled = false; awaitingNew = true; go.textContent = 'Feed it another'; $('feedbox').classList.remove('fed'); orbitSpeed = 0.004;
+    }).catch(() => { if (version === resultVersion) $('publish-status').textContent = 'Could not save this result. Feed the fly again to submit it.'; });
+  busy = false; go.disabled = false; $('sample').disabled = false; post.readOnly = false; awaitingNew = true; go.textContent = 'Feed it another'; $('feedbox').classList.remove('fed'); orbitSpeed = 0.004;
 }
 let awaitingNew = false;
 function newPost() { awaitingNew = false; go.textContent = 'Feed the fly'; softReset(); post.value = ''; post.focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 $('feedbox').addEventListener('submit', feed);
-document.getElementById('hall-x').addEventListener('toggle', e => { if (e.target.open && !e.target.dataset.loaded) { e.target.dataset.loaded = 1; loadHall(); } });
+$('publish').addEventListener('click', async () => {
+  if (!publication) return;
+  const version = resultVersion, entry = publication;
+  $('publish').disabled = true;
+  $('publish-status').textContent = 'Adding your post…';
+  try {
+    const response = await fetch('/api/publish', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(entry) });
+    if (!response.ok || !(await response.json()).ok) throw new Error('Publish failed');
+    loadHall();
+    if (version !== resultVersion) return;
+    publication = null;
+    $('publish').textContent = 'Added to Hall of Rot';
+    $('publish-status').textContent = 'Your post is now public in the Hall of Rot below.';
+  } catch {
+    if (version !== resultVersion) return;
+    $('publish').disabled = false;
+    $('publish-status').textContent = 'Could not add your post. Tap to try again.';
+  }
+});
+
+const EXPERIMENTS = {
+  sight: 'Try two emojis or a few bullet points. These stimulate the fly’s visual inputs.',
+  sound: 'Try THREE EXCLAMATION MARKS!!! Shouting stimulates hearing inputs in the antennae.',
+  smell: 'Try a word like “delve” or “tapestry”. AI-style language stimulates smell inputs.',
+  sugar: 'Try “Humbled to announce” or “Agree?”. Engagement bait stimulates sugar-sensing neurons.',
+  bitter: 'Try a factual paragraph with numbers and reasoning. Enough substance activates bitter inputs and can suppress the tongue response.',
+};
+let activeSenses = new Set();
+let hintQueue = [], hintIndex = 0;
+function renderHint() {
+  const ch = hintQueue[hintIndex % hintQueue.length];
+  $('experiment-hint').textContent = `${CH[ch].icon} ${EXPERIMENTS[ch]}`;
+}
+function showExperiment(run) {
+  activeSenses = new Set(Object.keys(CH).filter(ch => run.stim[ch]?.length));
+  $('sense-progress').replaceChildren(...Object.keys(CH).map(ch => {
+    const item = document.createElement('button');
+    const on = activeSenses.has(ch);
+    item.type = 'button';
+    item.className = 'sense-chip' + (on ? ' active' : '');
+    item.style.setProperty('--c', CH[ch].c);
+    item.textContent = `${CH[ch].icon} ${CH[ch].name}${on ? ' ✓' : ''}`;
+    const explanation = `${on ? 'Activated in this post. ' : 'Not activated in this post. '}${EXPERIMENTS[ch]}`;
+    item.setAttribute('aria-label', `${CH[ch].name}: ${on ? 'activated' : 'not activated'}. Show explanation`);
+    item.setAttribute('aria-describedby', 'experiment-hint');
+    item.title = explanation;
+    for (const event of ['mouseenter', 'focus', 'click']) item.addEventListener(event, () => { $('experiment-hint').textContent = explanation; });
+    return item;
+  }));
+  $('explore-title').textContent = `You lit up ${activeSenses.size}/5 senses`;
+  hintQueue = Object.keys(EXPERIMENTS).sort((a, b) => Number(activeSenses.has(a)) - Number(activeSenses.has(b)));
+  hintIndex = 0; renderHint();
+}
+$('next-hint').addEventListener('click', () => { hintIndex++; renderHint(); });
+$('experiment').addEventListener('click', () => {
+  post.value = lastText; awaitingNew = false; go.textContent = 'Feed the fly';
+  softReset(); post.focus(); post.setSelectionRange(post.value.length, post.value.length);
+  $('feedbox').scrollIntoView({ block: 'center', behavior: 'smooth' });
+});
+
+document.querySelector('.nav-hall').addEventListener('click', () => { $('hall-x').focus({ preventScroll: true }); });
 let voted = new Set(); try { voted = new Set(JSON.parse(localStorage.getItem('rot-votes') || '[]')); } catch (e) {}
 async function loadHall() {
   try {
-    const d = await fetch('/api/top').then(r => r.json());
+    const response = await fetch('/api/top');
+    if (response.status === 404 && ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) {
+      $('hall').textContent = 'The leaderboard isn’t connected in this local preview.';
+      return;
+    }
+    if (!response.ok) throw new Error('Hall unavailable');
+    const d = await response.json();
     const row = x => `<div class="hr"><button class="vote ${voted.has(x.id) ? 'did' : ''}" data-id="${x.id}" title="the fly agrees">🪰 <b>${x.votes}</b></button><span class="hr-s" style="color:${x.melt ? '#ff3b3b' : x.score < 30 ? '#ff5a5a' : '#b6ff3b'}">${x.score}%</span><span class="hr-t">${x.post.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}…</span></div>`;
     $('hall').innerHTML = (d.top.length ? `<h4>🏆 shittiest so far · upvote with the fly</h4>` + d.top.map(row).join('') : '<p>nothing yet. be the first.</p>') + (d.bottom.length ? `<h4>🪦 too much substance</h4>` + d.bottom.map(row).join('') : '');
     $('hall').querySelectorAll('.vote').forEach(btn => btn.addEventListener('click', async () => {
@@ -356,6 +450,7 @@ async function loadHall() {
       btn.classList.add('did'); btn.querySelector('b').textContent = Number(btn.querySelector('b').textContent) + 1; blip(880, .1, 'triangle', .1);
       fetch('/api/vote', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) }).catch(() => {});
     }));
-  } catch (err) { $('hall').textContent = 'the hall is closed right now.'; }
+  } catch (err) { $('hall').textContent = 'Couldn’t load the leaderboard. Please refresh to try again.'; }
 }
+loadHall();
 })();

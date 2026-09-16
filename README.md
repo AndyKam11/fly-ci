@@ -23,3 +23,15 @@ PYTHONPATH=. .venv/bin/python prep_runs.py         # → ../flyfluencer/public/r
 **Deploy**: Vercel, no build step (`npx vercel --prod`). Env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`. Run `supabase.sql` once in the Supabase SQL editor. Live: https://brainrotposts.com
 
 **Share image**: open `/?og=1`, wait for the run, screenshot the 1200×630 stage → `public/og.png`.
+
+## Hall of Rot opt-in and sense experiments
+
+- Scoring saves a private rating and returns an ID plus a per-result publication receipt. Only an explicit click on **Add to Hall of Rot** publishes that result; the receipt is kept in memory and cleared when editing or starting another post.
+- The public leaderboard and voting function only include `is_public = true` rows. Existing ratings stay private because they have no recorded opt-in.
+- After scoring, **Light up another sense** shows the simulation's stimulated inputs for that post, prioritizes inactive senses, and preserves the post when the visitor chooses to edit it.
+- Rot scores combine the simulated response with caps for text length, vocabulary variety and the number of bait patterns. A short trigger phrase cannot earn 90–100%; activating more senses does not itself increase the score.
+- Samples use the ordinary scoring rules. `npm test` checks each against the actual simulation files and verifies that original posts can still score 100. API and interaction tests use mocks; they do not publish real posts.
+
+### Release order
+
+Apply `supabase/migrations/20260915010000_hall_opt_in.sql` to the existing database immediately before deploying the updated API/frontend together. Fresh installs should use the complete `supabase.sql`. The new API fails closed if the consent columns are absent. The static local preview has no database API, so its hall is unavailable and it cannot publish results.

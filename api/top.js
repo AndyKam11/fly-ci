@@ -2,11 +2,12 @@
 const H = () => ({ apikey: process.env.SUPABASE_SERVICE_KEY, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}` });
 const esc = s => String(s).replace(/\s+/g, ' ').slice(0, 110);
 export default async function handler(req, res) {
-  res.setHeader('cache-control', 'public, s-maxage=30, stale-while-revalidate=300');
+  res.setHeader('cache-control', 'no-store');
   if (!process.env.SUPABASE_URL) return res.status(200).json({ top: [], bottom: [] });
   try {
     const q = async (order, extra = '', n = 60) => {
-      const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/ratings?select=id,fly_score,mn9,n_active,post,votes&order=${order}&limit=${n}${extra}`, { headers: H() });
+      const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/ratings?is_public=eq.true&select=id,fly_score,mn9,n_active,post,votes&order=${order}&limit=${n}${extra}`, { headers: H() });
+      if (!r.ok) throw new Error('Hall query failed');
       const seen = new Set(), out = [];
       for (const x of await r.json()) {
         const key = String(x.post).toLowerCase().replace(/\W+/g, '').slice(0, 80);

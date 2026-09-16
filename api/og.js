@@ -2,7 +2,7 @@
 import { ImageResponse } from '@vercel/og';
 export const config = { runtime: 'edge' };
 const TITLES = ['Zero rot. Not a shitpost. The fly walked away.', 'Barely rotten. The fly sniffed it and left.', 'Mildly rotten. A polite nibble.',
-  'Rotten. Proboscis extended.', 'Very rotten. The fly is feasting on this shitpost.', 'CERTIFIED SHITPOST. The fly is licking the screen.', 'BRAIN MELTDOWN. This smells like ChatGPT.'];
+  'Rotten. Proboscis extended.', 'Very rotten. The fly is feasting on this shitpost.', 'CERTIFIED SHITPOST. The fly is licking the screen.', 'BRAIN MELTDOWN. Peak self-indulgent slop.'];
 const h = (type, style, children) => ({ type, props: { style, children } });
 export default function handler(req) {
   const u = new URL(req.url);
