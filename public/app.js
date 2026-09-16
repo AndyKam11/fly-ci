@@ -504,7 +504,7 @@ const EXPERIMENTS = {
 };
 const SENSE_EXAMPLES = {
   sugar: 'Humbled to announce my new chapter. Grateful for this incredible journey. Agree?',
-  sight: 'A tiny update from my desk today. ☕🌻',
+  sight: 'Humbled to announce my coffee has become a thought leader. ☕🌻 Every sip is a lesson in leadership. Agree?',
   sound: 'THE PRINTER WORKS!!!',
   smell: 'We should delve into this idea.',
   bitter: 'We measured API latency across 200 calls because the SQL query was slow. However, the index reduced execution time from 90 ms to 40 ms. In practice, the onboarding flow still fails because the termination clause requires a second review. Instead of adding servers, we checked the Postgres query plan and removed a redundant join. The problem was a missing index, although we initially suspected the network.',

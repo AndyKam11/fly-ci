@@ -213,6 +213,7 @@ test('each sense example activates its intended input and the previous draft can
     assert.equal(element('restore-post').hidden, false);
     await context.feed(); await settle();
     assert.match(element('sense-progress').children[index].className, /active/, channel);
+    if (channel === 'sight') assert.ok(element('score').textContent > 0 && element('score').textContent <= 25, 'The sight example should earn a modest score');
     element('restore-post').handlers.click();
     assert.equal(element('post').value, original);
     assert.equal(element('restore-post').hidden, true);
