@@ -1,7 +1,7 @@
 // Share landing page: OG tags with the person's result, then straight into the app.
 // /s?r=94&t=2&m=75   (r: rot %, t: verdict tier 0-6, m: MN9 Hz)
-const TITLES = ['Zero rot. Not a shitpost. The fly walked away.', 'Barely rotten. The fly sniffed it and left.', 'Mildly rotten. A polite nibble.',
-  'Rotten. Proboscis extended.', 'Very rotten. The fly is feasting on this shitpost.', 'CERTIFIED SHITPOST. The fly is licking the screen.', 'BRAIN MELTDOWN. Peak self-indulgent slop.'];
+const TITLES = ['Zero rot. All substance. The fly walked away.', 'Barely rotten. The fly sniffed it and left.', 'Mildly rotten. A polite nibble.',
+  'Rotten. Proboscis extended.', 'Very rotten. The fly is feasting on this post.', 'CERTIFIED BRAIN ROT. The fly is licking the screen.', 'BRAIN MELTDOWN. Peak self-indulgent slop.'];
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export default function handler(req, res) {
   const r = Math.max(0, Math.min(100, parseInt(req.query.r) || 0)), t = Math.max(0, Math.min(6, parseInt(req.query.t) || 0)), m = Math.max(0, parseInt(req.query.m) || 0);

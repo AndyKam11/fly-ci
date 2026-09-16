@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Brain Rot</title>
-<meta name="description" content="Paste your LinkedIn post. A real fruit fly brain rates it. The shittier the post, the more the fly loves it.">
+<meta name="description" content="Paste your LinkedIn post. A real fruit fly brain rates it. The more rotten the post, the more the fly loves it.">
 <meta property="og:title" content="Brain Rot — a fruit fly brain rates your LinkedIn post">
-<meta property="og:description" content="139,255 real neurons. Flies know a shitpost when they taste one.">
+<meta property="og:description" content="139,255 real neurons. Find out how rotten your post tastes.">
 <meta property="og:url" content="https://brainrotposts.com/">
 <meta property="og:image" content="https://brainrotposts.com/og.png">
 <meta property="og:image:width" content="1200">
@@ -22,7 +22,7 @@
 <main class="wrap">
   <header class="top">
     <div class="wordmark">BRAIN<span>ROT</span></div>
-    <p class="tag">A fruit fly brain rates your LinkedIn post.<br><b>The shittier the post, the more the fly loves it.</b></p>
+    <p class="tag">A fruit fly brain rates your LinkedIn post.<br><b>The more rotten the post, the more the fly loves it.</b></p>
     <nav aria-label="Main"><a class="nav-about" href="#about-x">What is this?</a><a class="nav-hall" href="#hall-x">🏆 Hall of Rot</a></nav>
   </header>
 
@@ -46,9 +46,9 @@
   </div>
 
     <div class="workspace">
-    <p class="challenge">Can you hit <strong>100% brain rot?</strong></p>
+    <p class="challenge">Can you hit <strong>100% brain rot?</strong> Light up all five senses.</p>
     <form class="feedbox" id="feedbox" autocomplete="off">
-      <textarea id="post" rows="4" maxlength="6000" spellcheck="false" placeholder="Paste a LinkedIn post. The fly decides if it's a shitpost." aria-label="Your LinkedIn post"></textarea>
+      <textarea id="post" rows="4" maxlength="6000" spellcheck="false" placeholder="Paste a LinkedIn post. See how rotten it tastes to a fly." aria-label="Your LinkedIn post"></textarea>
       <div class="row">
         <button id="go" class="btn" type="submit">Feed the fly</button>
         <button id="sample" class="btn ghost" type="button">Try a Sample</button>
@@ -63,6 +63,12 @@
       <p class="sense-help">Hover to learn. Tap a sense to load an example.</p>
       <div id="sense-progress" class="sense-progress" aria-label="Senses activated by this post"></div>
       <p id="experiment-hint" aria-live="polite"></p>
+      <details class="x" id="senses-x">
+        <summary>How the fly read your post</summary>
+        <div class="tele" id="tele"></div>
+        <div id="senses" class="senses" hidden></div>
+        <div class="x-more"><a id="ng-link" target="_blank" rel="noopener">open these neurons in Neuroglancer ↗</a></div>
+      </details>
     </section>
 
     <div class="result-actions">
@@ -73,12 +79,7 @@
     <p id="publish-status" class="privacy-note" role="status">Hall of Rot makes your post public. Optional, every time.</p>
 
     <div class="pct" id="pct"></div>
-    <details class="x" id="senses-x">
-      <summary>how did the fly read this post?</summary>
-      <div class="tele" id="tele"></div>
-      <div id="senses" class="senses" hidden></div>
-      <div class="x-more"><a id="ng-link" target="_blank" rel="noopener">open these neurons in Neuroglancer ↗</a></div>
-    </details>
+
   </section>
 
     </div>
@@ -87,7 +88,7 @@
   <footer class="foot">
     <details class="x" id="about-x" tabindex="-1">
       <summary>What is this?</summary>
-      <p>Yes. <a href="https://flywire.ai" target="_blank" rel="noopener">FlyWire</a> mapped every neuron in an adult fruit fly brain; <a href="https://www.nature.com/articles/s41586-024-07763-9" target="_blank" rel="noopener">Shiu et al. (Nature 2024)</a> turned that wiring diagram into a working simulation of all 139,255 neurons. We ran that simulation ~1,000 times with every combination of the five senses above stimulated at different strengths, and your post picks the run that matches what it tastes, smells, sounds and looks like. The simulation measures MN9, the motor neuron that extends the fly's proboscis: sugar drives it, bitter suppresses it — both validated results of the paper. Brain rot is our game score: the simulated response is capped by the length, vocabulary variety and mix of bait patterns in your post. Short bait can light up the brain without earning a top score. The 3D view is the real reconstruction, showing the neurons that actually fired, in spike order, coloured by which sense they came from. Neuron names like <em>bluebell</em> and <em>good_dog</em> are the paper's real nicknames. Scored posts are saved privately. A post only appears in the Hall of Rot when its submitter chooses to add it.</p>
+      <p>Yes. <a href="https://flywire.ai" target="_blank" rel="noopener">FlyWire</a> mapped every neuron in an adult fruit fly brain; <a href="https://www.nature.com/articles/s41586-024-07763-9" target="_blank" rel="noopener">Shiu et al. (Nature 2024)</a> turned that wiring diagram into a working simulation of all 139,255 neurons. We ran that simulation ~1,000 times with every combination of the five senses above stimulated at different strengths, and your post picks the run that matches what it tastes, smells, sounds and looks like. The simulation measures MN9, the motor neuron that extends the fly's proboscis: sugar drives it, bitter suppresses it — both validated results of the paper. Brain rot is our game score: the simulated response is capped by the length, vocabulary variety and mix of bait patterns in your post. Short bait can light up the brain without earning a top score. Reaching 100% also requires activating all five senses. The 3D view is the real reconstruction, showing the neurons that actually fired, in spike order, coloured by which sense they came from. Neuron names like <em>bluebell</em> and <em>good_dog</em> are the paper's real nicknames. Scored posts are saved privately. A post only appears in the Hall of Rot when its submitter chooses to add it.</p>
       <p class="credits">Built by <a href="https://www.linkedin.com/in/franz-josef-schrepf/" target="_blank" rel="noopener">Franz Schrepf</a> · Connectome: FlyWire v783 · Model: <a href="https://github.com/philshiu/Drosophila_brain_model" target="_blank" rel="noopener">philshiu/Drosophila_brain_model</a> · Viewer: <a href="https://github.com/google/neuroglancer" target="_blank" rel="noopener">Neuroglancer</a> · <a href="https://github.com/Franz23/brainrot" target="_blank" rel="noopener">Source</a></p>
     </details>
     <details class="x">

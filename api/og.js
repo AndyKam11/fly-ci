@@ -1,8 +1,8 @@
 // Dynamic share image (1200x630): the score, the verdict, the fly. Edge runtime, @vercel/og (satori) with plain element objects.
 import { ImageResponse } from '@vercel/og';
 export const config = { runtime: 'edge' };
-const TITLES = ['Zero rot. Not a shitpost. The fly walked away.', 'Barely rotten. The fly sniffed it and left.', 'Mildly rotten. A polite nibble.',
-  'Rotten. Proboscis extended.', 'Very rotten. The fly is feasting on this shitpost.', 'CERTIFIED SHITPOST. The fly is licking the screen.', 'BRAIN MELTDOWN. Peak self-indulgent slop.'];
+const TITLES = ['Zero rot. All substance. The fly walked away.', 'Barely rotten. The fly sniffed it and left.', 'Mildly rotten. A polite nibble.',
+  'Rotten. Proboscis extended.', 'Very rotten. The fly is feasting on this post.', 'CERTIFIED BRAIN ROT. The fly is licking the screen.', 'BRAIN MELTDOWN. Peak self-indulgent slop.'];
 const h = (type, style, children) => ({ type, props: { style, children } });
 export default function handler(req) {
   const u = new URL(req.url);
@@ -18,7 +18,7 @@ export default function handler(req) {
         h('div', { fontSize: 46, fontWeight: 900, lineHeight: 1.1 }, TITLES[t]),
         h('div', { fontSize: 26, color: '#9d9db3', lineHeight: 1.35 }, t === 6 ? 'A real fruit fly brain, 139,255 neurons, went into runaway activity reading this post.' : `Rated by a real fruit fly brain: 139,255 neurons. Tongue motor neuron MN9 fired at ${m} Hz.`)]),
       h('div', { fontSize: 150 }, face)]),
-    h('div', { display: 'flex', justifyContent: 'space-between', fontSize: 26, color: '#9d9db3' }, [h('span', {}, 'The shittier the post, the more the fly loves it.'), h('span', { color: '#f4f1e8', fontWeight: 700 }, 'brainrotposts.com')]),
+    h('div', { display: 'flex', justifyContent: 'space-between', fontSize: 26, color: '#9d9db3' }, [h('span', {}, 'The more rotten the post, the more the fly loves it.'), h('span', { color: '#f4f1e8', fontWeight: 700 }, 'brainrotposts.com')]),
   ]);
   return new ImageResponse(tree, { width: 1200, height: 630, emoji: 'twemoji' });
 }

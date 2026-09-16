@@ -280,3 +280,8 @@ body.og .lab{display:block}body.og .workspace,body.og .stage-verdict{display:non
 #image-status:empty{display:none}
 
 @media(max-width:540px){.hr{display:grid;grid-template-columns:auto 1fr;padding:16px 0}.hr-t{grid-column:1 / -1}}
+
+/* Keep each post in its own full-width reading area, below its score. */
+.hall .hr{grid-template-columns:auto 1fr;gap:12px;padding:20px 0;text-align:left}
+.hall .hr-t{grid-column:1 / -1;white-space:pre-wrap;text-wrap:wrap;overflow-wrap:anywhere;line-height:1.65;tab-size:4;color:var(--ink)}
+#senses-x{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}

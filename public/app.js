@@ -1,4 +1,4 @@
-/* Brain Rot — a fruit fly brain rates your LinkedIn post. The shittier the post, the more it loves it.
+/* Brain Rot — a fruit fly brain rates your LinkedIn post. The more rotten the post, the more it loves it.
    post → five sensory channels (sugar, bitter, smell, sound, sight) → a real whole-brain simulation run at those
    stimulation levels (precomputed; Shiu et al. 2024 model, FlyWire v783 connectome, 139,255 neurons)
    → MN9 proboscis motor neuron rate → verdict. The 3D view is self-hosted Neuroglancer: real neurons, spike order. */
@@ -116,17 +116,19 @@ function rotScore(run, text) {
   const patterns = new Set([...hits.sugar, ...hits.smell].map(h => h.label)).size;
   const patternCap = Math.min(100, 20 + patterns * 16);
   const response = run.n_active > MELTDOWN ? 100 : Math.min(100, Math.round(run.mn9 * 1.25));
-  return Math.min(response, lengthCap, patternCap);
+  const sensesCount = Object.keys(CH).filter(ch => run.stim[ch]?.length).length;
+  const sensesCap = [0, 65, 79, 89, 95, 100][sensesCount];
+  return Math.min(response, lengthCap, patternCap, sensesCap);
 }
 const tierOf = (run, score) => score === 100 && run.n_active > MELTDOWN ? 6 : score === 0 ? 0 : score < 20 ? 1 : score < 40 ? 2 : score < 65 ? 3 : score < 90 ? 4 : 5;
 function verdictFor(run, score) {
   return [
-    ['Zero rot. Not a shitpost. The fly walked away.', 'dead', 'ew. substance.'],
-    ['Barely rotten. The fly sniffed it and left.', 'gone', 'meh. not shitty enough.'],
+    ['Zero rot. All substance. The fly walked away.', 'dead', 'ew. substance.'],
+    ['Barely rotten. The fly sniffed it and left.', 'gone', 'meh. not rotten enough.'],
     ['Mildly rotten. A polite nibble.', 'meh', 'hm. a little sugar.'],
     ['Rotten. Proboscis extended.', 'love', 'ooh. SUGAR.'],
-    ['Very rotten. The fly is feasting on this shitpost.', 'love', 'NOM NOM NOM'],
-    ['CERTIFIED SHITPOST. The fly is licking the screen.', 'love', 'SUGARRRR 🤤'],
+    ['Very rotten. The fly is feasting on this post.', 'love', 'NOM NOM NOM'],
+    ['CERTIFIED BRAIN ROT. The fly is licking the screen.', 'love', 'SUGARRRR 🤤'],
     ['BRAIN MELTDOWN. Peak self-indulgent slop.', 'melt', '🤯 what IS this'],
   ][tierOf(run, score)];
 }
@@ -180,7 +182,7 @@ ng.addEventListener('load', initViewer);
 initViewer(); // The cached iframe may have loaded before this script attached its listener.
 if (location.search.includes('og=1')) {                      // share-image mode
   document.body.classList.add('og');
-  document.querySelector('.stage').insertAdjacentHTML('beforeend', '<div class="ogmark">BRAIN <span>ROT</span></div><div class="ogtag">A real fruit fly brain rates your LinkedIn post.<br><b>The shittier the post, the more it loves it.</b></div>');
+  document.querySelector('.stage').insertAdjacentHTML('beforeend', '<div class="ogmark">BRAIN <span>ROT</span></div><div class="ogtag">A real fruit fly brain rates your LinkedIn post.<br><b>The more rotten the post, the more it loves it.</b></div>');
   setTimeout(() => { document.getElementById('sample').click(); document.getElementById('feedbox').requestSubmit(); }, 4000);
 }
 
@@ -234,7 +236,7 @@ const $ = id => document.getElementById(id);
 const post = $('post'), go = $('go'), phase = $('phase'), dot = document.querySelector('.dot'), meter = $('meterfill');
 let busy = false, resultVersion = 0, publication = null;
 let lastText = '', savedDraft = null, imageResult = null, imageObjectUrl = null;
-fetch('/api/rate').then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} shitposts fed to the fly so far`; }).catch(() => {});
+fetch('/api/rate').then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} posts fed to the fly so far`; }).catch(() => {});
 
 const SAMPLES = [
   `Humbled to announce I bought a standing desk. 🙏🚀
@@ -311,8 +313,8 @@ const isLink = t => /https?:\/\/|\blinkedin\.com\//i.test(t) && t.split(/\s+/).l
 async function feed(e) {
   if (e) e.preventDefault();
   if (awaitingNew) { newPost(); return; }
-  const text = post.value.trim();
-  if (!text) { post.focus(); return; }
+  const text = post.value;
+  if (!text.trim()) { post.focus(); return; }
   if (isLink(text)) { fly('idle', "that's a link. the fly can't click. paste the text."); post.focus(); return; }
   if (busy || !neuronsLayer()) return;
   imageResult = null; $('share').disabled = true; $('image-status').textContent = '';
@@ -329,7 +331,7 @@ async function feed(e) {
   const colors = {}; all.forEach(id => colors[id] = DIM);
 
   $('feedbox').classList.add('fed'); dot.classList.add('live'); meter.style.transform = 'scaleX(0)';
-  phase.textContent = 'landing on your shitpost…'; fly('landing'); buzz(true);
+  phase.textContent = 'landing on your post…'; fly('landing'); buzz(true);
   setColors(colors); setSegments(all);                       // meshes start streaming, nearly invisible
   await sleep(1300);
 
@@ -407,8 +409,8 @@ async function feed(e) {
       if (version !== resultVersion) return;
       if (d?.ok && d.id && d.token) { publication = { id: d.id, token: d.token }; $('publish').disabled = false; }
       else $('publish-status').textContent = 'Could not save this result. Feed the fly again to submit it.';
-      if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} shitposts fed to the fly so far`;
-      if (d && d.percentile != null && d.count > 20) $('pct').textContent = rot === 0 ? `Less rotten than ${100 - d.percentile}% of posts fed to the fly.` : `Shittier than ${d.percentile}% of posts fed to the fly.`;
+      if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} posts fed to the fly so far`;
+      if (d && d.percentile != null && d.count > 20) $('pct').textContent = rot === 0 ? `Less rotten than ${100 - d.percentile}% of posts fed to the fly.` : `More rotten than ${d.percentile}% of posts fed to the fly.`;
     }).catch(() => { if (version === resultVersion) $('publish-status').textContent = 'Could not save this result. Feed the fly again to submit it.'; });
   busy = false; go.disabled = false; $('sample').disabled = false; post.readOnly = false; awaitingNew = true; go.textContent = 'Feed it another'; $('feedbox').classList.remove('fed'); orbitSpeed = 0.004;
 }
@@ -526,7 +528,7 @@ async function loadHall() {
     if (!response.ok) throw new Error('Hall unavailable');
     const d = await response.json();
     const row = x => `<div class="hr"><button class="vote ${voted.has(x.id) ? 'did' : ''}" data-id="${x.id}" title="the fly agrees">🪰 <b>${x.votes}</b></button><span class="hr-s" style="color:${x.melt ? '#ff3b3b' : x.score < 30 ? '#ff5a5a' : '#b6ff3b'}">${x.score}%</span><span class="hr-t">${x.post.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</span></div>`;
-    $('hall').innerHTML = (d.top.length ? `<h4>🏆 shittiest so far · upvote with the fly</h4>` + d.top.map(row).join('') : '<p>nothing yet. be the first.</p>') + (d.bottom.length ? `<h4>🪦 too much substance</h4>` + d.bottom.map(row).join('') : '');
+    $('hall').innerHTML = (d.top.length ? `<h4>🏆 most rotten · upvote with the fly</h4>` + d.top.map(row).join('') : '<p>nothing yet. be the first.</p>') + (d.bottom.length ? `<h4>🪦 too much substance</h4>` + d.bottom.map(row).join('') : '');
     $('hall').querySelectorAll('.vote').forEach(btn => btn.addEventListener('click', async () => {
       const id = Number(btn.dataset.id); if (voted.has(id)) return;
       voted.add(id); try { localStorage.setItem('rot-votes', JSON.stringify([...voted])); } catch (e) {}

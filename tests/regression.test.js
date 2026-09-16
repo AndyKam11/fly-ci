@@ -10,7 +10,7 @@ import top from '../api/top.js';
 const source = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
 function scoring() {
   const context = vm.createContext({ fetch: async path => ({ json: async () => JSON.parse(fs.readFileSync(new URL('../public/' + path, import.meta.url), 'utf8')) }) });
-  vm.runInContext(source.slice(source.indexOf('const MN9'), source.indexOf('// ---------- neuroglancer')) + source.slice(source.indexOf('const SAMPLES'), source.indexOf('let sampleIdx')) + ';globalThis.sampleSenses = async text => { const { run } = await pickRun(text); return Object.keys(run.stim).filter(ch => run.stim[ch].length); }; globalThis.samples = SAMPLES; globalThis.evaluate = async text => rotScore((await pickRun(text)).run, text);', context);
+  vm.runInContext(source.slice(source.indexOf('const MN9'), source.indexOf('// ---------- neuroglancer')) + source.slice(source.indexOf('const SAMPLES'), source.indexOf('let sampleIdx')) + ';globalThis.sampleSenses = async text => { const { run } = await pickRun(text); return Object.keys(run.stim).filter(ch => run.stim[ch].length); }; globalThis.scoreRun = rotScore; globalThis.samples = SAMPLES; globalThis.evaluate = async text => rotScore((await pickRun(text)).run, text);', context);
   return context;
 }
 test('every sample scores below 100 with the real simulation data', async () => {
@@ -27,8 +27,21 @@ Here is what nobody talks about: your network is your net worth. Every closed do
 We are not just building a company but also cultivating a movement. Delve into the tapestry of transformative growth and you will discover a testament to resilience. My team taught me that passion beats perfection, purpose beats profit, and vulnerability unlocks limitless potential. The next chapter belongs to those brave enough to dream without permission.
 
 Hot take: success is never about the destination. It is about showing up when nobody is watching, celebrating every tiny victory, and turning your deepest setbacks into your greatest superpowers. I am thrilled to share this playbook with everyone who believed in our vision from the beginning. We rise by lifting others. Agree? Repost to inspire your network. #mindset #founders #journey 🚀🔥`;
-test('sustained varied slop can still reach 100', async () => {
-  assert.equal(await scoring().evaluate(SLOP), 100);
+test('long slop cannot reach 100 without all five actual senses', async () => {
+  assert.ok(await scoring().evaluate(SLOP) <= 89);
+});
+test('score ceilings depend on stimulated senses, not just detected vocabulary', () => {
+  const s = scoring();
+  for (let count = 1; count <= 5; count++) {
+    const stim = Object.fromEntries(['sugar', 'bitter', 'smell', 'sound', 'sight'].map((ch, i) => [ch, i < count ? ['neuron'] : []]));
+    assert.equal(s.scoreRun({ n_active: 4000, mn9: 100, stim }, SLOP), [0, 65, 79, 89, 95, 100][count]);
+  }
+});
+test('sustained varied slop with five senses can reach 100 using real simulation data', async () => {
+  const s = scoring();
+  const text = fs.readFileSync(new URL('./fixtures/five-senses.txt', import.meta.url), 'utf8');
+  assert.equal((await s.sampleSenses(text)).length, 5);
+  assert.equal(await s.evaluate(text), 100);
 });
 test('short bait and short AI vocabulary cannot earn elite scores', async () => {
   for (const text of ['I got rejected. Then I tried again. Agree?', 'Delve into a seamless tapestry of transformative innovation. Leverage this pivotal paradigm.']) {
@@ -284,4 +297,14 @@ test('brain capture redraws before reading the real canvas', () => {
   assert.equal(image, 'captured');
   assert.deepEqual(calls, ['draw', 'image/png']);
   assert.throws(() => context.window.BrainRotImage.capture(null), /not ready/);
+});
+
+
+test('submitting preserves the original post whitespace for the Hall', async () => {
+  const { context, element, requests } = ui();
+  const original = '  My opening line.\n\n• First point\n    Indented continuation\n\nLast line.  ';
+  element('post').value = original;
+  await context.feed(); await settle();
+  const request = requests.find(r => r.url === '/api/rate' && r.opts?.method === 'POST');
+  assert.equal(JSON.parse(request.opts.body).post, original);
 });
