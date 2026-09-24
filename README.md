@@ -48,7 +48,9 @@ npm test                                    # без зависимостей, N
 
 ## Размещение
 
-`.gitlab-ci.yml`: `npm test` → джоба `pages` публикует `public/` как есть. Запасной вариант — nginx со статикой:
+- GitHub: `.github/workflows/pages.yml` — `npm test` → `public/` публикуется как есть. Один раз включите Settings → Pages → Source: **GitHub Actions**.
+- GitLab: `.gitlab-ci.yml` — то же самое, джоба `pages`.
+- Свой сервер — nginx со статикой:
 
 ```bash
 docker run -d -p 8080:80 -v "$PWD/public:/usr/share/nginx/html:ro" nginx:alpine
