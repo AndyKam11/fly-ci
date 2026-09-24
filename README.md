@@ -4,6 +4,8 @@
 
 Развлечение и ненавязчивая популяризация хороших практик CI. Не линтер: для настоящей проверки есть CI Lint.
 
+**Страница:** https://andykam11.github.io/fly-ci/
+
 Форк [Brain Rot](https://github.com/Franz23/brainrot) (Franz Schrepf, MIT) с коммита `a001c3f`.
 
 Собственный CI проекта (`.gitlab-ci.yml`) муха оценила так:
