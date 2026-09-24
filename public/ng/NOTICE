@@ -3,3 +3,5 @@ Copyright Google LLC, licensed under the Apache License, Version 2.0
 (http://www.apache.org/licenses/LICENSE-2.0). embed.html is a thin wrapper that hides the UI chrome.
 Brain data: FlyWire (https://flywire.ai), CC BY 4.0. Whole-brain simulation model:
 https://github.com/philshiu/Drosophila_brain_model (Shiu et al., Nature 2024).
+09f21dcf7b4f13e8.wasm is lib/mesh/draco/neuroglancer_draco.wasm from the neuroglancer@2.41.2 npm package (Apache-2.0),
+added because the upstream bundle shipped without it and mesh decoding failed.

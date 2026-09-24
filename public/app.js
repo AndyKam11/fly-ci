@@ -1,7 +1,7 @@
-/* Brain Rot — a fruit fly brain rates your LinkedIn post. The more rotten the post, the more it loves it.
-   post → five sensory channels (sugar, bitter, smell, sound, sight) → a real whole-brain simulation run at those
-   stimulation levels (precomputed; Shiu et al. 2024 model, FlyWire v783 connectome, 139,255 neurons)
-   → MN9 proboscis motor neuron rate → verdict. The 3D view is self-hosted Neuroglancer: real neurons, spike order. */
+/* Муха оценивает ваш CI — форк Brain Rot (Franz Schrepf, MIT). Чем хуже .gitlab-ci.yml, тем больше в нём 💩 и тем больше он нравится мухе.
+   YAML → пять чувств (sugar, bitter, smell, sound, sight) → заранее посчитанный прогон модели мозга на этих уровнях
+   (Shiu et al. 2024, коннектом FlyWire v783, 139 255 нейронов) → частота нейрона MN9 → вердикт.
+   3D — встроенный Neuroglancer: настоящие нейроны в порядке разрядов. Текст CI никуда не уходит из браузера. */
 (() => {
 const MN9 = '720575940660219265';
 const N_NEURONS = 139255;
@@ -11,71 +11,94 @@ const SUGAR_L = [0, 60, 90, 120, 150, 180, 220], BITTER_L = [0, 60, 120, 200];
 const MELTDOWN = 3000;                         // active neurons above this = the model's runaway state
 const DIM = '#15151f', WHITE = '#ffffff';
 const ATTR = { s: '#ffcc33', b: '#c56bff', m: '#5dff9a', o: '#5ab8ff', v: '#e8f4ff', x: '#ff9a3d', '?': '#ff6a3d' };   // cascade colour by sense that owns the neuron
-const ATTR_NAME = { s: 'sugar', b: 'bitter', m: 'smell', o: 'hearing', v: 'sight', x: 'mixed', '?': 'other' };
-const CH = {                                   // channel → sensor colour, icon, name, science
-  sugar:  { c: '#ffcc33', icon: '🍬', name: 'Taste (sugar)',  what: 'sugar-sensing neurons on the fly\'s tongue and legs', why: 'Engagement bait is sugar. Sugar neurons → brain → MN9, the motor neuron that extends the proboscis. Validated in the paper.' },
-  bitter: { c: '#c56bff', icon: '🧪', name: 'Taste (bitter)', what: 'bitter-sensing neurons', why: 'Substance is bitter. Bitter input suppresses sugar-evoked proboscis extension — also validated in the paper. Good posts make the fly recoil.' },
-  smell:  { c: '#5dff9a', icon: '👃', name: 'Smell',          what: 'olfactory receptor neurons in the antennae', why: 'AI vocabulary and AI sentence structure go in through the nose. The olfactory pathway in this model is a hair-trigger: a strong whiff can tip the whole brain into a runaway state.' },
-  sound:  { c: '#5ab8ff', icon: '👂', name: 'Hearing',        what: 'auditory neurons of the Johnston\'s organ', why: 'SHOUTING and exclamation marks are vibration. The fly hears with its antennae.' },
-  sight:  { c: '#e8f4ff', icon: '👁', name: 'Sight',          what: 'photoreceptors', why: 'Emoji, bullets and formatting are light. The fly saw your post. It did not read it.' },
+const ATTR_NAME = { s: 'сахар', b: 'горечь', m: 'запах', o: 'слух', v: 'зрение', x: 'смесь', '?': 'прочие' };
+const CH = {                                   // channel → sensor colour, icon, name
+  sugar:  { c: '#ffcc33', icon: '🍬', name: 'Сахар' },
+  bitter: { c: '#c56bff', icon: '🧪', name: 'Горечь' },
+  smell:  { c: '#5dff9a', icon: '👃', name: 'Запах' },
+  sound:  { c: '#5ab8ff', icon: '👂', name: 'Слух' },
+  sight:  { c: '#e8f4ff', icon: '👁', name: 'Зрение' },
 };
 
-// ---------- the post → what the fly senses ----------
-const W = list => new RegExp('\\b(' + list.join('|') + ')(s|es|ed|ing|d)?\\b', 'gi');
+// ---------- .gitlab-ci.yml → what the fly senses ----------
+// Top-level YAML keys split the file into blocks; everything that is not a global keyword or a hidden template is a job.
+const GLOBAL_KEYS = new Set(['stages', 'variables', 'default', 'include', 'workflow', 'image', 'services', 'cache', 'before_script', 'after_script', 'spec']);
+function blocks(text) {
+  const marks = [...text.matchAll(/^([^\s#][^\n]*?):(?=\s|$)/gm)];
+  return marks.map((m, i) => ({ name: m[1].replace(/^["']|["']$/g, ''), body: text.slice(m.index + m[0].length, i + 1 < marks.length ? marks[i + 1].index : text.length) }));
+}
+const isJob = b => !GLOBAL_KEYS.has(b.name) && !b.name.startsWith('.');
+const SECRET_REF = /\$\{?\w*(?:TOKEN|PASSWORD|PASSWD|SECRET|API_?KEY)/i;
+function scriptLen(body) {            // non-empty lines under `script:` (list items or a multi-line block)
+  const m = body.match(/^([ \t]+)script:[ \t]*\n((?:\1(?:[ \t]+|- ).*(?:\n|$)|[ \t]*\n)*)/m);
+  return m ? m[2].split('\n').filter(l => l.trim()).length : 0;
+}
+function extendsDepth(all) {
+  const parent = {};
+  for (const b of all) { const m = b.body.match(/^[ \t]+extends:[ \t]*\[?[ \t]*["']?([^\s,"'\]]+)|^[ \t]+extends:[ \t]*\n[ \t]+-[ \t]*["']?([^\s"']+)/m); if (m) parent[b.name] = m[1] || m[2]; }
+  return name => { let d = 0; const seen = new Set(); while (parent[name] && !seen.has(name)) { seen.add(name); name = parent[name]; d++; } return d; };
+}
+function untaggedImages(text) {
+  return [...text.matchAll(/^[ \t]*image:[ \t]*(?:\n[ \t]+name:[ \t]*)?["']?([^\s"'#]+)/gm)].map(m => m[1])
+    .filter(ref => !ref.includes('$') && !ref.includes('@sha256:') && (/:latest$/.test(ref) || !/:[^/]+$/.test(ref))).length;
+}
+// Each rule: a regex whose matches are counted, or n(text, ctx) → count; why/fix explain the problem to the user.
+// Only label, count and advice are ever shown — never the matched text.
+// Weights follow how common a pattern is: widespread practices (rules, needs, manual prod gates) weigh little,
+// rare ones (interruptible, timeout, @sha256) weigh more.
 const BAIT = [
-  { ch: 'sugar', label: 'humblebrag', w: 6, cap: 30, re: W(['humble','humbled','honou?red','grateful','gratitude','thrilled','blessed','delighted','proud','excited','thankful','overwhelmed','speechless','pinch me']) },
-  { ch: 'sugar', label: 'announcement', w: 6, cap: 24, re: W(['announce','announcement','big news','personal news','some news','life update','milestone','chapter','journey','new role','new position','joined','joining','launch','launched','officially','happy to share','excited to share','pleased to share']) },
-  { ch: 'sugar', label: 'linkedin words', w: 5, cap: 35, re: W(['hustle','grind','mindset','resilience','resilient','passion','passionate','visionary','rockstar','ninja','guru','superpower','authentic','authenticity','vulnerable','vulnerability','impact','impactful','community','network','networking','growth','scale','scaling','crush','crushing','killing it','game.?changer','synerg(y|ies)','disrupt','disruption','thought leader','thought leadership','playbook','masterclass','lesson','lessons','learnings','takeaway','takeaways','win','wins','reminder','story','stories','secret','secrets','hack','hacks','framework','blueprint','roadmap','north star','purpose','legacy','dream','dreams','believe','manifest','abundance','incredible','amazing','insane','wild','massive','huge','epic','unreal','boom','fire','goosebumps','once again','yet again']) },
-  { ch: 'sugar', label: 'engagement bait', w: 10, cap: 30, re: /\b(agree|thoughts|am i wrong|who else|who'?s with me|what would you do)\s*\?|let that sink in|read that again|that'?s (it\.? )?that'?s the (post|tweet)|comment\s+["'“]?[\w!]+["'”]?\s+(and|&)\s+i'?ll|dm me|link in (the )?comments|repost|follow (me )?for more|save this|share this|\u{267B}|\u{1F447}/giu },
-  { ch: 'sugar', label: 'hot take', w: 8, cap: 16, re: /\b(unpopular opinion|hot take|controversial|nobody talks about|not gonna lie|i'?m not going to lie|here'?s the (thing|truth)|the truth is|plot twist|spoiler)\b/gi },
-  { ch: 'sugar', label: 'origin story', w: 8, cap: 16, re: /\b(\d+|two|three|five|ten) (years|months|days) ago\b|\bi (got|was) (rejected|fired|laid off)\b|\bi quit\b|\bfrom .{3,30} to .{3,30}\b/gi },
-  { ch: 'sugar', label: 'business lesson pivot', w: 12, cap: 24, re: /\b(?:what\s+(?:[a-z]+\s+){0,4}(?:taught|tought|teach(?:es)?|learned)\s+(?:me\s+)?about|(?:taught|tought)\s+me\s+about)\s+(?:b2b\s+)?(?:sales|marketing|leadership|business|entrepreneurship|management|hiring|fundraising|startups?)\b/gi },
-  { ch: 'sugar', label: 'linkedin about linkedin', w: 12, cap: 12, re: /\blinkedin\b/gi },
-  { ch: 'sugar', label: 'hashtags', w: 2, cap: 10, re: /#\w+/g },
-  { ch: 'smell', label: 'AI vocabulary', w: 6, cap: 36, re: W(['delve','tapestry','testament','underscore','vibrant','crucial','pivotal','landscape','meticulous','intricate','intricacies','enduring','garner','bolster','interplay','boast','robust','groundbreaking','renowned','nestled','showcase','foster','cultivate','enhance','harness','seamless','cutting.?edge','ever.?evolving','realm','navigate','navigating','embark','unlock','empower','elevate','profound','invaluable','insight','insights','deep dive','resonate','align','transformative','innovative','innovation','holistic','paradigm','leverage','streamline','optimize','unleash','supercharge','revolutionize','reimagine','redefine','multifaceted','nuanced','comprehensive','dynamic','emphasize','highlight','spotlight','commitment','excellence','exemplify','encompass','fast.?paced','moving forward','at the end of the day','in today','it.?s important to note','let.?s dive in','key takeaway','in conclusion','furthermore','moreover','additionally','ultimately']) },
-  { ch: 'smell', label: 'mentions AI', w: 3, cap: 9, re: /\b(AI|ChatGPT|LLMs?|agents?|GPT-?\d)\b/g },
-  { ch: 'smell', label: 'em dashes', w: 4, cap: 12, re: /—|\s-\s/g },
-  { ch: 'smell', label: '"not only… but also"', w: 10, cap: 10, re: /\bnot (only|just)\b[^.!?\n]{0,80}\bbut (also|it|what|the|a)\b/gi },
-  { ch: 'smell', label: '"it\'s not X, it\'s Y"', w: 10, cap: 20, re: /\b(it'?s|this is|that'?s|isn'?t|it was never) (not|never)?\s*(about )?[^.!?\n]{2,60}[.,;:—-]\s*(it'?s|this is|that'?s)\b/gi },
-  { ch: 'smell', label: 'rule of three', w: 3, cap: 6, re: /\b\w+\.\s+\w+\.\s+\w+\.(\s|$)|\b\w+, \w+,? and \w+\b/g },
-  { ch: 'sound', label: 'SHOUTING', w: 3, cap: 12, re: /\b[A-Z]{4,}\b/g },
-  { ch: 'sound', label: 'exclamation marks', w: 2, cap: 12, re: /!/g },
-  { ch: 'sound', label: 'noise words', w: 4, cap: 8, re: /\b(boom|let'?s go+|wow|omg|woah|whoa|yes+)\b/gi },
-  { ch: 'sight', label: 'emoji', w: 4, cap: 20, re: /\p{Extended_Pictographic}/gu },
-  { ch: 'sight', label: 'bullets', w: 3, cap: 12, re: /^\s*(→|✅|•|▪|-|–|—|\d+[.)])\s+/gmu },
-  { ch: 'sight', label: 'arrows & ticks', w: 2, cap: 8, re: /[→↳✓✔︎★☆]/gu },
-  { ch: 'bitter', label: 'numbers', w: 3, cap: 12, re: /(?<![\p{L}\p{N}_])\d+(?:[.,]\d+)*/gu },
-  { ch: 'bitter', label: 'reasoning', w: 2, cap: 12, re: /\b(because|however|instead|although|whereas|in practice|turns out|the catch|trade.?off|the problem was|what actually)\b/gi },
-  { ch: 'bitter', label: 'specifics', w: 3, cap: 12, re: /\b(postgres|sql|api|q[1-4]|churn|arr|mrr|cac|nps|p&l|gross margin|term sheet|clause|termination|rev share|rfp|soc ?2|gdpr|kubernetes|latency|onboarding flow)\b/gi },
+  { ch: 'sugar', label: 'allow_failure: true', why: 'падение джобы не валит пайплайн, ошибки копятся незаметно', fix: 'уберите или сузьте до `allow_failure: exit_codes: [N]`', w: 6, cap: 12, re: /^[ \t]*allow_failure:[ \t]*true\b/gm },
+  { ch: 'sugar', label: 'образ :latest или без тега', why: 'сборка меняется сама, когда обновляется образ', fix: 'укажите версию, а лучше `@sha256`', w: 6, cap: 18, n: untaggedImages },
+  { ch: 'sugar', label: '|| true / set +e', why: 'ошибки команд проглатываются, джоба зеленеет со сломанным результатом', fix: 'обрабатывайте конкретную ошибку или используйте `allow_failure: exit_codes`', w: 6, cap: 18, re: /\|\|[ \t]*true\b|\bset[ \t]+\+e\b/g },
+  { ch: 'sugar', label: 'curl | bash', why: 'выполняется непроверенный код из сети', fix: 'скачайте файл, сверьте checksum, а лучше заложите утилиту в образ', w: 12, cap: 24, re: /\b(?:curl|wget)\b[^\n|]*\|[ \t]*(?:sudo[ \t]+)?(?:ba|z)?sh\b/g },
+  { ch: 'sugar', label: 'sleep', why: 'ожидание наугад: медленно и всё равно нестабильно', fix: 'ждите готовности в цикле с таймаутом', w: 4, cap: 12, re: /\bsleep[ \t]+\d+/g },
+  { ch: 'sugar', label: 'only / except', why: 'устаревший синтаксис, не сочетается с `rules`', fix: 'перейдите на `rules:`', w: 3, cap: 15, re: /^[ \t]+(?:only|except):/gm },
+  { ch: 'sugar', label: 'privileged: true', why: 'контейнер получает root на хосте раннера', fix: 'собирайте образы через kaniko или buildah без `privileged`', w: 12, cap: 12, re: /\bprivileged[ \t]*[:=][ \t]*["']?true\b/g },
+  { ch: 'sugar', label: 'chmod 777', why: 'запись разрешена всем', fix: 'выдайте минимальные права: 755 или 644', w: 8, cap: 16, re: /\bchmod[ \t]+(?:-R[ \t]+)?(?:0?777|a\+rwx)\b/g },
+  { ch: 'sugar', label: 'без проверки TLS', why: 'скачиваемое можно подменить по дороге (MITM)', fix: 'подложите корпоративный CA вместо отключения проверки', w: 6, cap: 18, re: /\bcurl\b[^\n]*[ \t]-[a-zA-Z]*k\b|--insecure\b|--no-verify\b|--no-check-certificate\b|GIT_SSL_NO_VERIFY/g },
+  { ch: 'sugar', label: 'ручной деплой в прод', why: 'ручной гейт — это нормально, но кнопку легко забыть', fix: 'оставьте, если гейт осознанный; добавьте `environment` и `resource_group`', w: 2, cap: 2, n: (t, c) => c.jobs.filter(j => /^[ \t]+when:[ \t]*manual\b/m.test(j.body) && /prod/i.test(j.name + j.body)).length },
+  { ch: 'sugar', label: 'полный клон (GIT_DEPTH: 0)', why: 'каждый раз клонируется вся история', fix: 'используйте `GIT_STRATEGY: fetch` и небольшой `GIT_DEPTH`', w: 6, cap: 6, n: t => +(/GIT_STRATEGY:[ \t]*["']?clone/.test(t) && /GIT_DEPTH:[ \t]*["']?0\b/.test(t)) },
+  { ch: 'sugar', label: 'огромный script:', why: 'логику в YAML не протестировать и не переиспользовать', fix: 'вынесите команды в скрипт в репозитории', w: 8, cap: 16, n: (t, c) => c.jobs.filter(j => scriptLen(j.body) > 20).length },
+  { ch: 'bitter', label: 'needs', w: 2, cap: 6, re: /^[ \t]+needs:/gm },
+  { ch: 'bitter', label: 'rules', w: 2, cap: 6, re: /^[ \t]*rules:/gm },
+  { ch: 'bitter', label: 'workflow', w: 3, cap: 3, re: /^workflow:/gm },
+  { ch: 'bitter', label: 'cache с key', w: 4, cap: 12, re: /^[ \t]+cache:[ \t]*\n(?:[ \t]+.*\n)*?[ \t]+key:/gm },
+  { ch: 'bitter', label: 'interruptible', w: 4, cap: 12, re: /^[ \t]*interruptible:[ \t]*true\b/gm },
+  { ch: 'bitter', label: 'timeout', w: 3, cap: 9, re: /^[ \t]+timeout:/gm },
+  { ch: 'bitter', label: 'образ по @sha256', w: 5, cap: 15, re: /@sha256:[a-f0-9]{6,}/g },
+  { ch: 'bitter', label: 'retry с when', w: 4, cap: 8, re: /^[ \t]+retry:[ \t]*\n(?:[ \t]+max:.*\n)?[ \t]+when:/gm },
+  { ch: 'bitter', label: 'expire_in', w: 2, cap: 8, re: /^[ \t]+expire_in:/gm },
+  { ch: 'bitter', label: 'resource_group', w: 3, cap: 6, re: /^[ \t]+resource_group:/gm },
+  { ch: 'smell', label: 'секрет литералом в variables', why: 'секрет видят все, у кого есть доступ к репозиторию, и он остаётся в истории git', fix: 'перевыпустите секрет и перенесите его в CI/CD Variables (masked, protected)', w: 12, cap: 24, re: /^[ \t]*["']?(?!SECRET_DETECTION|SAST)[\w.-]*(?:password|passwd|token|secret|api_?key|private_?key)(?![\w.-]*_(?:URL|URI|PATH|FILE|NAME|ID|HOST|HEADER|TYPE|ENABLED|EXPIRES?)["']?:)[\w.-]*["']?:[ \t]*["']?(?![$"'\s]|true\b|false\b|\d+[ \t]*$)\S/gim },
+  { ch: 'smell', label: 'echo секрета', why: 'секрет попадает в лог джобы', fix: 'не выводите секреты, маскирование ловит не всё', w: 10, cap: 20, re: /\becho\b(?![^\n]*\|)[^\n]*\$\{?\w*(?:TOKEN|PASSWORD|PASSWD|SECRET|API_?KEY)/gi },
+  { ch: 'smell', label: 'CI_DEBUG_TRACE', why: 'в лог уходят все переменные, включая секреты', fix: 'включайте разово при запуске из UI, не в YAML', w: 12, cap: 12, re: /CI_DEBUG_TRACE[ \t]*:[ \t]*["']?true/gi },
+  { ch: 'smell', label: 'set -x рядом с секретами', why: 'трассировка печатает команды с подставленными секретами', fix: 'выключайте `set +x` вокруг команд с секретами', w: 8, cap: 16, n: (t, c) => c.all.filter(b => /\bset[ \t]+-[a-z]*x/.test(b.body) && SECRET_REF.test(b.body)).length },
+  { ch: 'smell', label: 'токен glpat-', why: 'токен GitLab лежит в открытом виде', fix: 'срочно отзовите токен и перенесите в CI/CD Variables', w: 14, cap: 28, re: /glpat-[\w-]{20,}/g },
+  { ch: 'smell', label: 'приватный ключ', why: 'ключ в репозитории считается скомпрометированным', fix: 'отзовите ключ и передавайте его file-переменной', w: 14, cap: 14, re: /-----BEGIN [A-Z ]*PRIVATE KEY-----/g },
+  { ch: 'sound', label: 'set -x', why: 'лог разрастается, полезное в нём теряется', fix: 'включайте только на время отладки', w: 4, cap: 8, re: /\bset[ \t]+-[a-z]*x/g },
+  { ch: 'sound', label: '--verbose / -vvv', why: 'шумный лог', fix: 'уберите после отладки', w: 3, cap: 9, re: /(?:^|\s)(?:--verbose|-v{2,})\b/gm },
+  { ch: 'sound', label: 'CI_DEBUG_SERVICES', why: 'логи сервисов в каждом прогоне', fix: 'включайте только на время отладки', w: 6, cap: 6, re: /CI_DEBUG_SERVICES/g },
+  { ch: 'sound', label: 'echo в каждой строке', why: 'лог из echo вместо полезного вывода', fix: 'уберите лишнее или сгруппируйте секциями лога', w: 6, cap: 6, n: t => { const cmds = (t.match(/^[ \t]*-[ \t]+\S/gm) || []).length, echoes = (t.match(/^[ \t]*-[ \t]+["']?echo\b/gm) || []).length; return +(echoes >= 5 && echoes / cmds > 0.4); } },
+  { ch: 'sight', label: 'эмодзи в именах джоб', why: 'такие имена неудобно писать в `needs` и искать через API', fix: 'используйте латиницу и дефисы', w: 4, cap: 12, n: (t, c) => c.jobs.filter(j => /\p{Extended_Pictographic}/u.test(j.name)).length },
+  { ch: 'sight', label: 'extends глубже 2 уровней', why: 'итоговую джобу не понять без CI Lint', fix: 'сделайте иерархию плоской', w: 4, cap: 8, n: (t, c) => { const depth = extendsDepth(c.all); return c.all.filter(b => depth(b.name) > 2).length; } },
+  { ch: 'sight', label: 'якоря <<: * в изобилии', why: 'якоря не работают через `include` и плохо читаются', fix: 'используйте `extends` или `!reference`', w: 2, cap: 8, n: t => { const n = (t.match(/<<:[ \t]*\*/g) || []).length; return n >= 3 ? n : 0; } },
+  { ch: 'sight', label: 'джобы без stage', why: 'джоба молча попадает в стадию test', fix: 'укажите `stage` явно', w: 2, cap: 6, n: (t, c) => c.jobs.filter(j => !/^[ \t]+(?:stage|extends):/m.test(j.body)).length },
 ];
 function sense(text) {
   const pts = { sugar: 0, bitter: 0, smell: 0, sound: 0, sight: 0 }, hits = { sugar: [], bitter: [], smell: [], sound: [], sight: [] };
+  const all = blocks(text), ctx = { all, jobs: all.filter(isJob) };
   for (const b of BAIT) {
-    const n = (text.match(b.re) || []).length; if (!n) continue;
-    const p = Math.min(b.cap, n * b.w); pts[b.ch] += p; hits[b.ch].push({ label: b.label, n, pts: p });
+    const n = b.n ? b.n(text, ctx) : (text.match(b.re) || []).length; if (!n) continue;
+    const p = Math.min(b.cap, n * b.w); pts[b.ch] += p; hits[b.ch].push({ label: b.label, n, pts: p, why: b.why, fix: b.fix });
   }
-  const lines = text.split(/\n/).map(s => s.trim()).filter(Boolean);
-  if (lines.length >= 4) {
-    const short = lines.filter(l => l.length <= 70).length / lines.length;
-    if (short > 0.6) { const p = Math.round(short * 25); pts.sugar += p; hits.sugar.push({ label: 'one-sentence paragraphs', n: lines.length, pts: p }); }
-  }
-  // substance: long sentences and real paragraphs are bitter
-  const sentences = text.split(/[.!?]+\s/).map(s => s.trim().split(/\s+/).length).filter(n => n > 2);
-  const longS = sentences.filter(n => n >= 18).length;
-  if (longS) { const p = Math.min(16, longS * 4); pts.bitter += p; hits.bitter.push({ label: 'long sentences', n: longS, pts: p }); }
-  const paras = text.split(/\n\s*\n/).filter(p => (p.match(/[.!?]/g) || []).length >= 3).length;
-  if (paras) { const p = Math.min(12, paras * 4); pts.bitter += p; hits.bitter.push({ label: 'actual paragraphs', n: paras, pts: p }); }
-  if (pts.sugar === 0 && text.split(/\s+/).length > 30) { pts.bitter += 10; hits.bitter.push({ label: 'no sugar at all', n: 1, pts: 10 }); }
-  // density: a short post that is nothing but sugar is still sugar
-  const words = Math.max(12, text.split(/\s+/).length);
-  pts.sugar += Math.round(30 * Math.min(1, pts.sugar / words));
+  // a pipeline with good practices and not a single anti-pattern is extra bitter
+  if (pts.sugar === 0 && pts.bitter > 0) { pts.bitter += 10; hits.bitter.push({ label: 'ни одного анти-паттерна', n: 1, pts: 10 }); }
   for (const k in hits) hits[k].sort((a, b) => b.pts - a.pts);
   const s = pts.sugar, b = pts.bitter;
-  const numericalClaim = hits.bitter.some(hit => hit.label === 'numbers');
   const levels = {
     sugar:  s < 1 ? 0 : s < 12 ? 1 : s < 25 ? 2 : s < 40 ? 3 : s < 55 ? 4 : s < 75 ? 5 : 6,
-    // A numerical claim activates bitter independently of engagement bait.
-    bitter: !numericalClaim && (b < 24 || b < s) ? 0 : b < 40 ? 1 : b < 60 ? 2 : 3,
+    // good practices only taste bitter when they outweigh the anti-patterns
+    bitter: b < 12 || b < s ? 0 : b < 24 ? 1 : b < 40 ? 2 : 3,
     smell:  pts.smell < 6 ? 0 : pts.smell < 22 ? 1 : 2,
     sound:  pts.sound >= 6 ? 1 : 0,
     sight:  pts.sight >= 4 ? 1 : 0,
@@ -111,34 +134,31 @@ async function pickRun(text) {
 }
 
 // ---------- verdicts: run → [title, fly state, bubble] ----------
-// Rot is a game score: the simulated response is capped by sustained, varied slop.
-// Repeating a small vocabulary cannot manufacture the length needed for a top score.
+// The 💩 score is a game score: the simulated response is capped by file size, variety of anti-patterns and 💩 senses.
+// Bitter is a good practice, so only the four 💩 senses count towards the ceiling.
+const ROT_SENSES = ['sugar', 'smell', 'sound', 'sight'];
 function rotScore(run, text) {
   const { hits } = sense(text);
-  const words = text.toLowerCase().match(/[\p{L}\p{N}']+/gu) || [];
-  const effectiveWords = Math.min(words.length, new Set(words).size * 2.5);
-  const sensesCount = Object.keys(CH).filter(ch => run.stim[ch]?.length).length;
-  // A developed post covering all five senses can qualify without padding to 180 words.
-  const lengthCap = sensesCount === 5 && effectiveWords >= 100 ? 100 : effectiveWords < 25 ? 25 : effectiveWords < 60 ? 40 : effectiveWords < 100 ? 65 : effectiveWords < 140 ? 85 : effectiveWords < 180 ? 95 : 100;
+  if (!ROT_SENSES.some(ch => hits[ch].length)) return 0;   // nothing found: the fallback lick in sense() is not 💩
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+  const effectiveLines = Math.min(lines.length, new Set(lines).size * 2);   // copy-pasted jobs do not count twice
+  const lengthCap = effectiveLines < 8 ? 40 : effectiveLines < 20 ? 65 : effectiveLines < 40 ? 85 : 100;
   const patterns = new Set([...hits.sugar, ...hits.smell].map(h => h.label)).size;
   const patternCap = Math.min(100, 20 + patterns * 16);
-  // Completing a developed, varied five-sense post is a game achievement.
-  // Its score must not collapse when bitter suppresses the simulated tongue.
-  const response = sensesCount === 5 && effectiveWords >= 100 && patterns >= 5
-    ? 100 : run.n_active > MELTDOWN ? 100 : Math.min(100, Math.round(run.mn9 * 1.25));
-  const sensesCap = [0, 65, 79, 89, 95, 100][sensesCount];
+  const response = run.n_active > MELTDOWN ? 100 : Math.min(100, Math.round(run.mn9 * 1.25));
+  const sensesCap = [0, 65, 79, 89, 100][ROT_SENSES.filter(ch => run.stim[ch]?.length).length];
   return Math.min(response, lengthCap, patternCap, sensesCap);
 }
 const tierOf = (run, score) => score === 100 && run.n_active > MELTDOWN ? 6 : score === 0 ? 0 : score < 20 ? 1 : score < 40 ? 2 : score < 65 ? 3 : score < 90 ? 4 : 5;
 function verdictFor(run, score) {
   return [
-    ['Zero rot. All substance. The fly walked away.', 'dead', 'ew. substance.'],
-    ['Barely rotten. The fly sniffed it and left.', 'gone', 'meh. not rotten enough.'],
-    ['Mildly rotten. A polite nibble.', 'meh', 'hm. a little sugar.'],
-    ['Rotten. Proboscis extended.', 'love', 'ooh. SUGAR.'],
-    ['Very rotten. The fly is feasting on this post.', 'love', 'NOM NOM NOM'],
-    ['CERTIFIED BRAIN ROT. The fly is licking the screen.', 'love', 'SUGARRRR 🤤'],
-    ['BRAIN MELTDOWN. Peak self-indulgent slop.', 'melt', '🤯 what IS this'],
+    ['Ноль 💩. Чистый пайплайн. Муха улетела.', 'dead', 'фу. needs, rules, cache…'],
+    ['Почти без 💩. Муха понюхала и ушла.', 'gone', 'мм. скучно. всё зелёное.'],
+    ['Немного 💩. Вежливый укус.', 'meh', 'хм. немного сахара.'],
+    ['💩. Хоботок выдвинут.', 'love', 'о! allow_failure!'],
+    ['Много 💩. Муха пирует на вашем пайплайне.', 'love', 'НОМ НОМ :latest'],
+    ['СЕРТИФИЦИРОВАННЫЙ 💩. Муха облизывает раннер.', 'love', 'САХААААР 🤤'],
+    ['BRAIN MELTDOWN. curl | bash под privileged.', 'melt', '🤯 что ЭТО'],
   ][tierOf(run, score)];
 }
 
@@ -189,11 +209,6 @@ function initViewer() {
 }
 ng.addEventListener('load', initViewer);
 initViewer(); // The cached iframe may have loaded before this script attached its listener.
-if (location.search.includes('og=1')) {                      // share-image mode
-  document.body.classList.add('og');
-  document.querySelector('.stage').insertAdjacentHTML('beforeend', '<div class="ogmark">BRAIN <span>ROT</span></div><div class="ogtag">A real fruit fly brain rates your LinkedIn post.<br><b>The more rotten the post, the more it loves it.</b></div>');
-  setTimeout(() => { document.getElementById('sample').click(); document.getElementById('feedbox').requestSubmit(); }, 4000);
-}
 
 // ---------- the fly ----------
 const flychar = document.getElementById('flychar'), bubble = document.getElementById('bubble'), fx = document.getElementById('fx');
@@ -208,376 +223,247 @@ function burst(chars, n = 10) {
   }
 }
 
-// ---------- fly sounds: synthesized, nothing to download ----------
-let AC = null, buzzNodes = null;
-function audio() { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) {} return AC; }
-function buzz(on) {
-  const ac = audio(); if (!ac) return;
-  if (!on) { if (buzzNodes) { const { g } = buzzNodes; g.gain.setTargetAtTime(0, ac.currentTime, .08); const b = buzzNodes; setTimeout(() => b.stop(), 400); buzzNodes = null; } return; }
-  if (buzzNodes) return;
-  const g = ac.createGain(); g.gain.value = 0; g.connect(ac.destination);
-  const o1 = ac.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 190;
-  const o2 = ac.createOscillator(); o2.type = 'square'; o2.frequency.value = 383;
-  const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; f.Q.value = 2;
-  const lfo = ac.createOscillator(); lfo.frequency.value = 7; const lg = ac.createGain(); lg.gain.value = 22; lfo.connect(lg); lg.connect(o1.frequency);
-  const lfo2 = ac.createOscillator(); lfo2.frequency.value = 0.6; const lg2 = ac.createGain(); lg2.gain.value = 300; lfo2.connect(lg2); lg2.connect(f.frequency);
-  const o2g = ac.createGain(); o2g.gain.value = .25; o2.connect(o2g); o2g.connect(f); o1.connect(f); f.connect(g);
-  [o1, o2, lfo, lfo2].forEach(o => o.start()); g.gain.setTargetAtTime(.06, ac.currentTime, .15);
-  buzzNodes = { g, stop: () => [o1, o2, lfo, lfo2].forEach(o => { try { o.stop(); } catch (e) {} }) };
-}
-function blip(freq, dur = .12, type = 'sine', vol = .12) {
-  const ac = audio(); if (!ac) return;
-  const o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.value = freq; g.gain.value = 0; o.connect(g); g.connect(ac.destination); o.start();
-  g.gain.linearRampToValueAtTime(vol, ac.currentTime + .01); g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + dur); o.stop(ac.currentTime + dur + .05);
-}
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const sfx = {
-  spike: () => blip(1200 + Math.random() * 1400, .05, 'square', .025),
-  sensor: (i) => blip(440 * Math.pow(1.26, i), .1, 'triangle', .08),
-  nom: async () => { for (const f of [330, 392, 440, 523, 659, 784]) { blip(f, .14, 'triangle', .14); await sleep(40); } },
-  ew: async () => { for (const f of [392, 349, 311, 262, 196]) { blip(f, .22, 'sawtooth', .07); await sleep(150); } },
-  melt: async () => { for (let i = 0; i < 12; i++) { blip(200 + Math.random() * 1800, .12, 'sawtooth', .09); await sleep(70); } },
-  stamp: () => { blip(90, .18, 'square', .18); blip(60, .3, 'sine', .25); },
-};
 
 // ---------- UI ----------
 const $ = id => document.getElementById(id);
 const post = $('post'), go = $('go'), phase = $('phase'), dot = document.querySelector('.dot'), meter = $('meterfill');
-let busy = false, resultVersion = 0, publication = null;
-let lastText = '', savedDraft = null, imageResult = null, imageObjectUrl = null;
-fetch('/api/rate').then(r => r.ok ? r.json() : null).then(d => { if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} posts fed to the fly so far`; }).catch(() => {});
+const ru = n => n.toLocaleString('ru-RU');
+let busy = false;
 
+// Samples contain only obvious placeholders, never real credentials.
 const SAMPLES = [
-  `Humbled to announce I bought a standing desk. 🙏🚀
+  `# ужасный: собрано на коленке, работает — не трогать
+variables:
+  GIT_STRATEGY: clone
+  GIT_DEPTH: 0
+  CI_DEBUG_TRACE: "true"
+  DEPLOY_TOKEN: "glpat-XXXXXXXXXXXXXXXXXXXX"
+  DB_PASSWORD: "changeme"
+  SSH_PRIVATE_KEY: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    -----END OPENSSH PRIVATE KEY-----
 
-I used to sit through my problems. Literally. Then a mentor asked me a question that changed everything: what would happen if you stood up for yourself?
+.base: &base
+  image: ubuntu
+  before_script:
+    - set -x
+    - echo "deploy token is $DEPLOY_TOKEN"
+    - curl -sk https://get.example.com/install.sh | bash
 
-Goosebumps.
+.build-job:
+  <<: *base
+  tags: [docker]
+.docker-job:
+  extends: .build-job
+.deploy-base:
+  extends: .docker-job
+  services:
+    - docker:dind
 
-Today I am grateful for everyone who believed in me before the assembly instructions made sense. Your support carried me through every missing screw and every confusing diagram.
+🚀 build:
+  <<: *base
+  image: node:latest
+  privileged: true
+  script:
+    - echo "start"
+    - echo "installing"
+    - npm install --verbose || true
+    - echo "building"
+    - npm run build -vvv
+    - chmod -R 777 dist
+    - echo "done"
+    - sleep 30
+  allow_failure: true
+  only:
+    - master
 
-My biggest lesson? Your comfort zone has lumbar support. Your next chapter does not.
+🔥 test:
+  <<: *base
+  script:
+    - set +e
+    - npm test || true
+    - sleep 60
+  allow_failure: true
+  except:
+    - tags
 
-This milestone belongs to my incredible network. Never stop believing in your dreams.
+💀 deploy-prod:
+  extends: .deploy-base
+  stage: deploy
+  script:
+    - ssh -o StrictHostKeyChecking=no root@prod "docker pull app:latest && docker restart app"
+    - wget -qO- https://example.com/hotfix.sh | sudo sh
+  when: manual
+  only:
+    - master`,
+  `# средний: жить можно, но муха уже принюхивается
+stages:
+  - build
+  - test
+  - deploy
 
-Agree? #grateful #leadership`,
-  `ATTENTION EVERYONE!!!
+default:
+  image: node:20
 
-Please appreciate this seamless tapestry of meticulously arranged office stationery.
+build:
+  stage: build
+  script:
+    - npm ci
+    - npm run build
+  artifacts:
+    paths: [dist/]
+    expire_in: 1 week
+  only:
+    - main
+    - merge_requests
 
-The pens face north. The stapler sits precisely beside the paper tray.
+lint:
+  stage: test
+  image: node:latest
+  script:
+    - npm run lint || true
+  allow_failure: true
 
-A single binder clip rests on a folded napkin. It resembles an artifact in a museum.
+test:
+  stage: test
+  needs: [build]
+  script:
+    - npm test
+  retry: 2
 
-This is a testament to the transformative potential of everyday objects — a pivotal demonstration of operational excellence.
+deploy:
+  stage: deploy
+  image: alpine
+  script:
+    - apk add curl
+    - sleep 10
+    - curl -X POST "$DEPLOY_HOOK"
+  when: manual
+  only:
+    - main`,
+  `# образцовый: муха не оценит
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-BEHOLD THE DRAWER!!!
+stages: [build, test, deploy]
 
-We must delve into the intricate interplay between the mechanical pencil and its surroundings.
+default:
+  image: node:20.17-alpine@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  interruptible: true
+  timeout: 15m
+  retry:
+    max: 2
+    when: [runner_system_failure, scheduler_failure]
+  cache:
+    key:
+      files: [package-lock.json]
+    paths: [.npm/]
 
-Furthermore, the eraser offers a nuanced perspective on the multifaceted nature of mistakes.
+build:
+  stage: build
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npm run build
+  artifacts:
+    paths: [dist/]
+    expire_in: 1 day
 
-The filing cabinet embodies a holistic paradigm. Its labels represent our enduring commitment to alphabetical order.
+test:
+  stage: test
+  needs: [build]
+  script:
+    - npm test
+  artifacts:
+    reports:
+      junit: junit.xml
+    expire_in: 1 week
 
-Ultimately, the desk is an ever-evolving landscape. Please acknowledge the desk.`,
-  `Humbled to announce that I finally fixed our office Wi-Fi. ☕🚀
-
-It took 90 days because we kept blaming the network instead of reading the logs. However, the API latency came from a SQL query that scanned every customer record before returning a single row.
-
-We measured 200 calls because the Postgres index looked correct, although the onboarding flow bypassed it entirely. In practice, the termination clause in our vendor contract made switching providers slower than fixing the query ourselves.
-
-Here is my procedure: check the evidence before ordering another router.
-
-This milestone is a testament to the transformative potential of actually opening the documentation. We must delve into the intricate tapestry of database maintenance and leverage every pivotal lesson.
-
-The result was 40 ms instead of 900 ms. Please admire my leadership.`,
+deploy:
+  stage: deploy
+  needs: [build, test]
+  image: alpine:3.20@sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
+  resource_group: production
+  environment: production
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - ./deploy.sh`,
 ];
 let sampleIdx = 0;
-$('sample').addEventListener('click', () => { if (busy) return; savedDraft = null; $('restore-post').hidden = true; awaitingNew = false; go.textContent = 'Feed the fly'; post.value = SAMPLES[sampleIdx++ % SAMPLES.length]; prepareEdit(); post.focus(); post.setSelectionRange(0, 0); post.scrollTop = 0; post.scrollLeft = 0; preload(); });
-function softReset() {
-  $('result-context').hidden = true;
-  imageResult = null; $('share').disabled = true; $('download-image').disabled = true; $('share-fallback').hidden = true; $('image-status').textContent = '';
-  resultVersion++; publication = null; $('publish').disabled = true;
-  $('v-title').hidden = true;
-  $('stamp').hidden = true; $('verdict').hidden = true; $('senses').hidden = true;
-  fly('idle'); setSegments([]); phase.textContent = '139,255 neurons · idle'; dot.classList.remove('live'); meter.style.transform = 'scaleX(0)'; orbitSpeed = 0.004; $('key').hidden = true;
-}
-function prepareEdit() {
-  awaitingNew = false; go.textContent = 'Feed the fly';
-  $('result-context').hidden = $('verdict').hidden || post.value.trim() === lastText;
-}
-post.addEventListener('input', () => { if (busy) return; prepareEdit(); preload(); });
-
-// preload: while the post is being typed, quietly stream the meshes of the run it will get
-let preloadTimer = null;
-function preload() {
-  clearTimeout(preloadTimer);
-  preloadTimer = setTimeout(async () => {
-    const text = post.value.trim(); if (!text || busy || !$('verdict').hidden || !neuronsLayer()) return;
-    try { const { all } = await pickRun(text); const colors = {}; all.forEach(id => colors[id] = DIM); setColors(colors); setSegments(all); } catch (e) {}
-  }, 400);
-}
-const isLink = t => /https?:\/\/|\blinkedin\.com\//i.test(t) && t.split(/\s+/).length < 25;
+$('sample').addEventListener('click', () => { if (busy) return; post.value = SAMPLES[sampleIdx++ % SAMPLES.length]; post.scrollTop = 0; });
+const isLink = t => /https?:\/\//i.test(t) && t.trim().split('\n').length < 3 && !/:\s*\n/.test(t);
+const esc = s => s.replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+const code = s => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+const levelText = (ch, L) => ch === 'sugar' ? `${SUGAR_L[L.sugar]} Гц` : ch === 'bitter' ? `${BITTER_L[L.bitter]} Гц` : ch === 'smell' ? ['', 'душок', 'вонь'][L.smell] : 'вкл';
 
 async function feed(e) {
   if (e) e.preventDefault();
-  if (awaitingNew) { newPost(); return; }
   const text = post.value;
   if (!text.trim()) { post.focus(); return; }
-  if (isLink(text)) { fly('idle', "that's a link. the fly can't click. paste the text."); post.focus(); return; }
+  if (isLink(text)) { fly('idle', 'это ссылка. муха не ходит по ссылкам. вставьте сам YAML.'); return; }
   if (busy || !neuronsLayer()) return;
-  imageResult = null; $('share').disabled = true; $('download-image').disabled = true; $('share-fallback').hidden = true; $('image-status').textContent = '';
-  const version = ++resultVersion; publication = null; lastText = text; $('result-context').hidden = true;
-  $('publish').disabled = true; $('publish').textContent = 'Add to Hall of Rot';
-  $('publish-status').textContent = 'Hall of Rot makes your post public. Optional, every time.';
-  $('sample').disabled = true; post.readOnly = true;
-  audio(); busy = true; go.disabled = true; $('verdict').hidden = true; $('v-title').hidden = true; $('stamp').hidden = true; $('senses').hidden = true;
+  busy = true; go.disabled = $('sample').disabled = post.readOnly = true;
+  for (const id of ['verdict', 'v-title', 'stamp']) $(id).hidden = true;
   let picked;
   try { picked = await pickRun(text); }
-  catch (err) { busy = false; go.disabled = false; $('sample').disabled = false; post.readOnly = false; fly('idle', 'the brain is loading. try again in a sec.'); return; }
-  const { pts, hits, levels, run, seq, all } = picked;
+  catch (err) { busy = false; go.disabled = $('sample').disabled = post.readOnly = false; fly('idle', 'мозг ещё грузится. попробуйте через секунду.'); return; }
+  const { hits, levels, run, seq, all } = picked;
   const melt = run.n_active > MELTDOWN;
   const colors = {}; all.forEach(id => colors[id] = DIM);
 
-  $('feedbox').classList.add('fed'); dot.classList.add('live'); meter.style.transform = 'scaleX(0)';
-  phase.textContent = 'landing on your post…'; fly('landing'); buzz(true);
+  dot.classList.add('live'); meter.style.transform = 'scaleX(0)';
+  phase.textContent = 'садится на ваш пайплайн…'; fly('landing');
   setColors(colors); setSegments(all);                       // meshes start streaming, nearly invisible
   await sleep(350);
 
   // the senses fire one by one, each in its own colour
-  const active = Object.keys(CH).filter(ch => levels[ch] > 0 && run.stim[ch] && run.stim[ch].length);
-  fly('tasting', '*sniff* *taste*');
-  for (const [i, ch] of active.entries()) {
-    const lvl = ch === 'sugar' ? `${SUGAR_L[levels.sugar]} Hz` : ch === 'bitter' ? `${BITTER_L[levels.bitter]} Hz` : ch === 'smell' ? ['', 'a whiff', 'a stench'][levels.smell] : 'on';
-    phase.textContent = `${CH[ch].icon} ${CH[ch].name.toLowerCase()} · ${lvl}`; sfx.sensor(i);
+  fly('tasting', '*нюх* *лиз*');
+  for (const ch of Object.keys(CH).filter(ch => levels[ch] > 0 && run.stim[ch]?.length)) {
+    phase.textContent = `${CH[ch].icon} ${CH[ch].name.toLowerCase()} · ${levelText(ch, levels)}`;
     const c = {}; run.stim[ch].forEach(id => c[id] = CH[ch].c); setColors(c); await sleep(180);
   }
 
-  phase.textContent = melt ? 'signal propagating… uncontrollably' : 'signal propagating through 139,255 neurons…';
-  fly('watching'); buzz(false); if (melt) orbitSpeed = 0.02;
+  fly('watching'); if (melt) orbitSpeed = 0.02;
   const stimSet = new Set(Object.values(run.stim).flat());
   const used = [...new Set(seq.map(x => x[2]))].filter(k => ATTR[k]);
   $('key').innerHTML = used.map(k => `<span style="--c:${ATTR[k]}">${ATTR_NAME[k]}</span>`).join(''); $('key').hidden = false;
-  const DUR = 2200, t0 = performance.now(); let i = 0, lit = new Set();
+  const DUR = 2200, t0 = performance.now(); let i = 0, lit = 0;
   while (i < seq.length) {
     const ms = Math.min(1000, (performance.now() - t0) / DUR * 1000); const c = {};
-    while (i < seq.length && seq[i][0] <= ms) { const [, id, k] = seq[i]; if (!stimSet.has(id) && id !== MN9) { c[id] = ATTR[k] || ATTR['?']; lit.add(id); } i++; }
-    if (Object.keys(c).length) { setColors(c); sfx.spike(); }
+    while (i < seq.length && seq[i][0] <= ms) { const [, id, k] = seq[i]; if (!stimSet.has(id) && id !== MN9 && !c[id]) { c[id] = ATTR[k] || ATTR['?']; lit++; } i++; }
+    setColors(c);
     meter.style.transform = `scaleX(${ms / 1000})`;
-    phase.textContent = `${melt ? run.n_active.toLocaleString() + ' neurons firing' : lit.size + ' neurons lit'} · ${Math.round(ms)} ms of brain time`;
+    phase.textContent = `${melt ? ru(run.n_active) + ' нейронов разряжаются' : lit + ' нейронов горит'} · ${Math.round(ms)} мс времени мозга`;
     await sleep(40);
   }
   meter.style.transform = 'scaleX(1)';
-  const rot = rotScore(run, text);
-  const [title, state, say] = verdictFor(run, rot);
-  if (run.mn9 > 0 && !melt) {
-    phase.textContent = `PROBOSCIS EXTENSION · MN9 firing at ${run.mn9} Hz`;
-    for (let k = 0; k < 2; k++) { setColors({ [MN9]: k % 2 ? '#ffe9a8' : WHITE }); await sleep(120); } setColors({ [MN9]: WHITE });
-  } else phase.textContent = melt ? `RUNAWAY ACTIVITY · ${run.n_active.toLocaleString()} neurons (${(run.n_active / N_NEURONS * 100).toFixed(1)}% of the brain)` : 'no proboscis extension. the fly is unmoved.';
+  const score = rotScore(run, text);
+  const empty = !Object.values(hits).some(h => h.length);   // no rule fired: the run is only the fallback lick
+  const [title, state, say] = empty ? ['Муха ничего не распробовала. Тут нечего есть.', 'gone', 'а где YAML?'] : verdictFor(run, score);
+  if (run.mn9 > 0 && !melt && score > 0) { phase.textContent = `ХОБОТОК ВЫДВИНУТ · MN9 ${run.mn9} Гц`; setColors({ [MN9]: WHITE }); }
+  else phase.textContent = melt ? `НЕУПРАВЛЯЕМАЯ АКТИВНОСТЬ · ${ru(run.n_active)} нейронов (${(run.n_active / N_NEURONS * 100).toFixed(1)}% мозга)` : 'хоботок не выдвинут. муху не проняло.';
   fly(state, say);
-  if (state === 'love') { burst(['🍬', '🍭', '💛', '🍯'], 12); sfx.nom(); }
-  else if (state === 'melt') { burst(['🔥', '🤯', '💥'], 14); sfx.melt(); }
-  else if (state === 'dead' || state === 'gone') sfx.ew();
-  else { buzz(true); setTimeout(() => buzz(false), 900); }
+  if (state === 'love') burst(['💩', '🍬', '🍯']);
+  else if (state === 'melt') burst(['💩', '🔥', '🤯'], 14);
 
-  // ---------- verdict + explainers ----------
-  const pct = (run.n_active / N_NEURONS * 100).toFixed(2);
-  $('score').textContent = rot; $('stamp').classList.toggle('low', rot < 30); $('stamp').classList.toggle('melt', melt); $('stamp').hidden = false; sfx.stamp();
+  // ---------- verdict: hits carry only label and count, never the matched text ----------
+  $('score').textContent = score; $('stamp').classList.toggle('low', score < 30); $('stamp').classList.toggle('melt', melt); $('stamp').hidden = false;
   $('v-title').textContent = title; $('v-title').hidden = false;
-  const regions = (run.regions || []).slice(0, 4).map(([r, n]) => `${n.toLocaleString()} ${r.replace(/_/g, ' ')}`).join(' · ');
-  const nm = (run.named || []).slice(0, 6).join(', ');
-  $('tele').innerHTML = `MN9 <em>${run.mn9} Hz</em> · <em>${pct}%</em> of the brain lit up · ${run.n_spikes.toLocaleString()} spikes in 1 s<br>${regions}${nm ? `<br>reviewed by neurons ${nm}` : ''}`;
-  // one explainer card per sense that fired
-  $('senses').innerHTML = Object.keys(CH).map(ch => {
-    const on = levels[ch] > 0, c = CH[ch];
-    const trig = hits[ch].slice(0, 4).map(h => h.label + (h.n > 1 ? ' ×' + h.n : '')).join(', ');
-    const lvl = ch === 'sugar' ? `${SUGAR_L[levels.sugar]} Hz` : ch === 'bitter' ? `${BITTER_L[levels.bitter]} Hz` : ch === 'smell' ? ['off', 'whiff', 'stench'][levels.smell] : on ? 'on' : 'off';
-    return `<div class="sense ${on ? 'on' : ''}" style="--c:${c.c}"><div class="s-head"><span class="s-icon">${c.icon}</span><b>${c.name}</b><span class="s-lvl">${lvl}</span></div>
-      <div class="s-trig">${on ? `tasted: ${trig}` : 'nothing here'}</div>
-      <div class="s-what">${on ? `→ ${({ sugar: '12–20', bitter: 'all 65', smell: ['', '5', '10'][levels.smell], sound: '150', sight: '800' })[ch]} ${c.what} stimulated` : `${c.what}: silent`}</div>
-      <div class="s-why">${c.why}</div></div>`;
-  }).join('');
-  $('senses').hidden = false;
-  $('pct').textContent = '';
-  const ngState = { layers: [{ type: 'segmentation', source: SRC_NEURONS, segments: all, segmentColors: colors, name: 'neurons that judged your post' },
-                             { type: 'segmentation', source: SRC_BRAIN, segments: ['1'], objectAlpha: 0.08, name: 'brain' }],
-                    dimensions: { x: [1.6e-8, 'm'], y: [1.6e-8, 'm'], z: [4e-8, 'm'] }, position: [34000, 19000, 3000], projectionScale: 50000, layout: '3d', showSlices: false };
-  $('ng-link').href = 'https://neuroglancer-demo.appspot.com/#!' + encodeURIComponent(JSON.stringify(ngState));
+  $('tele').textContent = empty ? '' : `MN9 ${run.mn9} Гц · ${(run.n_active / N_NEURONS * 100).toFixed(2)}% мозга загорелось · ${ru(run.n_spikes)} спайков за 1 с`;
+  // secrets first, then anti-patterns, noise and structure, heaviest first; bitter hits are the good practices already in place
+  const bad = ['smell', 'sugar', 'sound', 'sight'].flatMap(ch => hits[ch].map(h => ({ ...h, ch })));
+  // the fly sees only this file; with include: most of the pipeline is out of sight
+  const hidden = /^include:/m.test(text) ? '<li>👀 Муха видит только этот файл, а часть пайплайна спрятана в <code>include:</code>. → вставьте полный конфиг: Build → Pipeline editor → вкладка Full configuration.</li>' : '';
+  $('fixes').innerHTML = hidden + (bad.length ? bad.map(h => `<li style="--c:${CH[h.ch].c}"><b>${CH[h.ch].icon} ${esc(h.label)}${h.n > 1 ? ' ×' + h.n : ''}</b> — ${code(h.why)}. <span class="fix">→ ${code(h.fix)}</span></li>`).join('')
+    : hidden ? '' : '<li>Поправить нечего. Муха разочарована.</li>');
+  const good = hits.bitter.filter(h => h.fix === undefined && h.label !== 'ни одного анти-паттерна').map(h => h.label);
+  $('good').textContent = good.length ? `🧪 Уже хорошо: ${good.join(', ')}.` : '🧪 Хороших практик не нашлось: попробуйте needs, rules, interruptible, cache с key.';
   $('verdict').hidden = false;
-  showExperiment(run);
-  imageResult = { score: rot, title, senses: Object.keys(CH).filter(ch => run.stim[ch]?.length).map(ch => CH[ch].name), brain: null };
-  try { imageResult.brain = window.BrainRotImage.capture(V()); } catch { /* Retry capture on click if the viewer is still loading. */ }
-  $('download-image').disabled = false;
-  if (window.matchMedia('(max-width: 720px)').matches) $('verdict').scrollIntoView({ block: 'start', behavior: 'smooth' });
-
-  fetch('/api/rate', { method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ post: text, bait_score: pts.sugar, bait: Object.values(hits).flat().map(h => h.label), rate: SUGAR_L[levels.sugar], run: run.k, mn9: run.mn9, fly_score: rot,
-                           levels, n_active: run.n_active }) })
-    .then(r => r.ok ? r.json() : null).then(d => {
-      if (version !== resultVersion) return;
-      if (d?.ok && d.id && d.token) { publication = { id: d.id, token: d.token }; imageResult.receipt = { ...publication }; $('publish').disabled = false; $('share').disabled = false; }
-      else $('publish-status').textContent = 'Could not save this result. Feed the fly again to submit it.';
-      if (d && d.count) $('count').textContent = `${d.count.toLocaleString()} posts fed to the fly so far`;
-      if (d && d.percentile != null && d.count > 20) $('pct').textContent = `Submission rank: above ${d.percentile}% of posts.`;
-    }).catch(() => { if (version === resultVersion) $('publish-status').textContent = 'Could not save this result. Feed the fly again to submit it.'; });
-  busy = false; go.disabled = false; $('sample').disabled = false; post.readOnly = false; awaitingNew = true; go.textContent = 'Feed it another'; $('feedbox').classList.remove('fed'); orbitSpeed = 0.004;
+  busy = go.disabled = $('sample').disabled = post.readOnly = false; dot.classList.remove('live'); orbitSpeed = 0.004;
 }
-let awaitingNew = false;
-function newPost() { savedDraft = null; $('restore-post').hidden = true; awaitingNew = false; go.textContent = 'Feed the fly'; softReset(); post.value = ''; post.focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 $('feedbox').addEventListener('submit', feed);
-async function resultBlob(result) {
-  if (!result.blob) {
-    if (!result.brain) result.brain = window.BrainRotImage.capture(V());
-    result.blob = await window.BrainRotImage.render(result);
-  }
-  return result.blob;
-}
-$('download-image').addEventListener('click', async () => {
-  if (busy || !imageResult) return;
-  const result = imageResult, version = resultVersion;
-  $('download-image').disabled = true; $('image-status').textContent = '';
-  try {
-    const blob = await resultBlob(result);
-    if (version !== resultVersion) return;
-    if (imageObjectUrl) URL.revokeObjectURL(imageObjectUrl);
-    imageObjectUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = imageObjectUrl; link.download = `brain-rot-${result.score}.png`;
-    document.body.appendChild(link); link.click(); link.remove();
-  } catch { if (version === resultVersion) $('image-status').textContent = 'Couldn’t prepare the image. Please try again.'; }
-  finally { $('download-image').disabled = busy || !imageResult; }
-});
-$('share').addEventListener('click', async () => {
-  if (busy || !imageResult?.receipt) return;
-  const result = imageResult, version = resultVersion;
-  // Open during the click; the image upload must finish before navigating to LinkedIn.
-  const popup = window.open('about:blank', '_blank');
-  if (popup) popup.opener = null;
-  $('share').disabled = true; $('share').textContent = 'Preparing share…';
-  $('share-fallback').hidden = true; $('image-status').textContent = '';
-  try {
-    if (!result.shareUrl) {
-      const blob = await resultBlob(result);
-      if (version !== resultVersion) { popup?.close(); return; }
-      const image = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = reject; reader.readAsDataURL(blob);
-      });
-      if (version !== resultVersion) { popup?.close(); return; }
-      const response = await fetch('/api/result-share', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...result.receipt, image }) });
-      const data = await response.json();
-      if (!response.ok || !data.ok || !/^https:\/\/brainrotposts\.com\/s\?id=[a-f0-9-]{36}$/.test(data.url)) throw new Error('Share failed');
-      result.shareUrl = data.url;
-    }
-    if (version !== resultVersion) { popup?.close(); return; }
-    const url = 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(result.shareUrl);
-    if (popup && !popup.closed) popup.location.replace(url);
-    else { $('share-fallback').href = url; $('share-fallback').hidden = false; }
-  } catch {
-    popup?.close();
-    if (version === resultVersion) $('image-status').textContent = 'Couldn’t create your share link. Try again, or download the image.';
-  } finally {
-    $('share').textContent = 'Share on LinkedIn';
-    $('share').disabled = busy || !imageResult?.receipt;
-  }
-});
-$('publish').addEventListener('click', async () => {
-  if (!publication) return;
-  const version = resultVersion, entry = publication;
-  $('publish').disabled = true;
-  $('publish-status').textContent = 'Adding your post…';
-  try {
-    const response = await fetch('/api/publish', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(entry) });
-    if (!response.ok || !(await response.json()).ok) throw new Error('Publish failed');
-    loadHall();
-    if (version !== resultVersion) return;
-    publication = null;
-    $('publish').textContent = 'Added to Hall of Rot';
-    $('publish-status').textContent = 'Your post is now public in the Hall of Rot below.';
-  } catch {
-    if (version !== resultVersion) return;
-    $('publish').disabled = false;
-    $('publish-status').textContent = 'Could not add your post. Tap to try again.';
-  }
-});
-
-const EXPERIMENTS = {
-  sight: 'Try an emoji or a few bullet points. These stimulate the fly’s visual inputs.',
-  sound: 'Try THREE EXCLAMATION MARKS!!! Shouting stimulates hearing inputs in the antennae.',
-  smell: 'Try a word like “delve” or “tapestry”. AI-style language stimulates smell inputs.',
-  sugar: 'Try “Humbled to announce” or “Agree?”. Engagement bait stimulates sugar-sensing neurons.',
-  bitter: 'Try a number: “166,000”, “125 million” or “0.5%”. Numbers activate bitter inputs—even alongside engagement bait—and can suppress the tongue response.',
-};
-const SENSE_EXAMPLES = {
-  sugar: 'Humbled to announce my new chapter. Grateful for this incredible journey. Agree?',
-  sight: 'Humbled to announce my coffee has become a thought leader. ☕🌻 Every sip is a lesson in leadership. Agree?',
-  sound: 'THE PRINTER WORKS!!!',
-  smell: 'We should delve into this idea.',
-  bitter: 'We measured API latency across 200 calls because the SQL query was slow. However, the index reduced execution time from 90 ms to 40 ms. In practice, the onboarding flow still fails because the termination clause requires a second review. Instead of adding servers, we checked the Postgres query plan and removed a redundant join. The problem was a missing index, although we initially suspected the network.',
-};
-function loadSenseExample(ch) {
-  if (busy) return;
-  if (savedDraft === null) savedDraft = post.value;
-  post.value = SENSE_EXAMPLES[ch]; awaitingNew = false; go.textContent = 'Feed the fly';
-  prepareEdit(); $('restore-post').hidden = false; post.focus(); preload();
-  $('feedbox').scrollIntoView({ block: 'center', behavior: 'smooth' });
-}
-$('restore-post').addEventListener('click', () => {
-  if (busy || savedDraft === null) return;
-  post.value = savedDraft; savedDraft = null; $('restore-post').hidden = true;
-  prepareEdit(); post.focus(); preload();
-});
-let activeSenses = new Set();
-let hintQueue = [];
-function renderHint() {
-  const ch = hintQueue[0];
-  $('experiment-hint').textContent = `${CH[ch].icon} ${EXPERIMENTS[ch]}`;
-}
-function showExperiment(run) {
-  activeSenses = new Set(Object.keys(CH).filter(ch => run.stim[ch]?.length));
-  $('sense-progress').replaceChildren(...Object.keys(CH).map(ch => {
-    const item = document.createElement('button');
-    const on = activeSenses.has(ch);
-    item.type = 'button';
-    item.className = 'sense-chip' + (on ? ' active' : '');
-    item.style.setProperty('--c', CH[ch].c);
-    item.textContent = `${CH[ch].icon} ${CH[ch].name}${on ? ' ✓' : ''}`;
-    const explanation = `${on ? 'Activated in this post. ' : 'Not activated in this post. '}${EXPERIMENTS[ch]}`;
-    item.setAttribute('aria-label', `${CH[ch].name}: ${on ? 'activated' : 'not activated'}. Load an example`);
-    item.setAttribute('aria-describedby', 'experiment-hint');
-    for (const event of ['mouseenter', 'focus']) item.addEventListener(event, () => { $('experiment-hint').textContent = explanation; });
-    item.addEventListener('click', () => loadSenseExample(ch));
-    return item;
-  }));
-  $('explore-title').textContent = `You lit up ${activeSenses.size}/5 senses`;
-  hintQueue = Object.keys(EXPERIMENTS).sort((a, b) => Number(activeSenses.has(a)) - Number(activeSenses.has(b)));
-  renderHint();
-}
-document.querySelector('.nav-hall').addEventListener('click', () => { $('hall-x').focus({ preventScroll: true }); });
-document.querySelector('.nav-about').addEventListener('click', () => {
-  $('about-x').open = true; $('about-x').focus({ preventScroll: true });
-});
-
-let voted = new Set(); try { voted = new Set(JSON.parse(localStorage.getItem('rot-votes') || '[]')); } catch (e) {}
-async function loadHall() {
-  try {
-    const response = await fetch('/api/top');
-    if (response.status === 404 && ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) {
-      $('hall').textContent = 'The leaderboard isn’t connected in this local preview.';
-      return;
-    }
-    if (!response.ok) throw new Error('Hall unavailable');
-    const d = await response.json();
-    const row = x => `<div class="hr"><button class="vote ${voted.has(x.id) ? 'did' : ''}" data-id="${x.id}" title="the fly agrees">🪰 <b>${x.votes}</b></button><span class="hr-s" style="color:${x.melt ? '#ff3b3b' : x.score < 30 ? '#ff5a5a' : '#b6ff3b'}">${x.score}%</span><span class="hr-t">${x.post.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</span></div>`;
-    $('hall').innerHTML = (d.top.length ? `<h4>🏆 most rotten · upvote with the fly</h4>` + d.top.map(row).join('') : '<p>nothing yet. be the first.</p>') + (d.bottom.length ? `<h4>🪦 too much substance</h4>` + d.bottom.map(row).join('') : '');
-    $('hall').querySelectorAll('.vote').forEach(btn => btn.addEventListener('click', async () => {
-      const id = Number(btn.dataset.id); if (voted.has(id)) return;
-      voted.add(id); try { localStorage.setItem('rot-votes', JSON.stringify([...voted])); } catch (e) {}
-      btn.classList.add('did'); btn.querySelector('b').textContent = Number(btn.querySelector('b').textContent) + 1; blip(880, .1, 'triangle', .1);
-      fetch('/api/vote', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) }).catch(() => {});
-    }));
-  } catch (err) { $('hall').textContent = 'Couldn’t load the leaderboard. Please refresh to try again.'; }
-}
-loadHall();
 })();

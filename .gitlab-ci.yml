@@ -1,0 +1,32 @@
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+stages: [test, deploy]
+
+default:
+  image: node:24-alpine
+  interruptible: true
+  timeout: 10m
+  retry:
+    max: 2
+    when: [runner_system_failure, scheduler_failure]
+
+test:
+  stage: test
+  script:
+    - npm test
+
+# GitLab Pages: публикуется public/ как есть, без сборки
+pages:
+  stage: deploy
+  needs: [test]
+  resource_group: pages
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - echo "static site, nothing to build"
+  artifacts:
+    paths: [public]
+    expire_in: 30 days

@@ -1,7 +1,4 @@
-.vercel
-ng.tgz
 node_modules
 .claude
+.playwright-mcp
 .env*
-calib/
-public/mtest.html

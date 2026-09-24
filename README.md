@@ -1,46 +1,70 @@
-# Brain Rot 🪰
+# Муха оценивает ваш CI 🪰
 
-A real fruit fly brain rates your LinkedIn post. The worse the post, the more the fly loves it.
+Вставьте `.gitlab-ci.yml` — «мозг мухи» вынесет вердикт, а в 3D видно, как в настоящем коннектоме FlyWire загораются нейроны. **Чем больше в CI 💩, тем больше муха в восторге**: анти-паттерны — сахар, хорошие практики — горечь, секреты — запах. Под вердиктом — список «Что поправить»: что именно плохо, почему и как исправить.
 
-**How it works**
+Развлечение и ненавязчивая популяризация хороших практик CI. Не линтер: для настоящей проверки есть CI Lint.
 
-1. The post is scanned for engagement bait (`public/app.js` → `BAIT`): humblebrags, 🚀, one-line paragraphs, "Agree?", "Let that sink in"… Bait = sugar. The score picks a sugar intensity (60–220 Hz).
-2. That intensity selects one of ~500 precomputed whole-brain simulations: the Shiu et al. 2024 leaky integrate-and-fire model of the full FlyWire v783 connectome (139,255 neurons), with the fly's sugar-sensing neurons stimulated. (`public/runs.json`)
-3. The firing rate of MN9 — the motor neuron that extends the proboscis — is the verdict. Sugar → MN9 is a validated result of the paper.
-4. The 3D view is a self-hosted [Neuroglancer](https://github.com/google/neuroglancer) (`public/ng/`, Apache-2.0) streaming the real FlyWire meshes from Google Cloud Storage; neurons light up in spike order.
-5. `api/rate.js` (Vercel function) logs each judged post to Supabase (`supabase.sql`).
+Форк [Brain Rot](https://github.com/Franz23/brainrot) (Franz Schrepf, MIT) с коммита `a001c3f`.
 
-**Regenerating the simulations** — copy `sim/*.py` into a checkout of [philshiu/Drosophila_brain_model](https://github.com/philshiu/Drosophila_brain_model) (Python 3.12 venv with brian2, pandas, pyarrow, joblib):
+Собственный CI проекта (`.gitlab-ci.yml`) муха оценила так:
+
+![Муха оценивает .gitlab-ci.yml этого проекта: 0% 💩](docs/own-ci.png)
+
+## Как это работает
+
+1. Регулярки из `BAIT` (`public/app.js`) раскладывают YAML по пяти чувствам:
+
+   | Чувство | Смысл | Примеры |
+   |---|---|---|
+   | 🍬 sugar | анти-паттерны | `allow_failure: true`, `:latest`/без тега, `\|\| true`, `curl \| bash`, `sleep`, `only/except`, `privileged`, `chmod 777`, `-k`, ручной деплой в прод, `GIT_DEPTH: 0`, `script:` > 20 строк |
+   | 🧪 bitter | хорошие практики | `needs`, `rules`, `workflow`, `cache` с `key`, `interruptible`, `timeout`, `@sha256`, `retry` с `when`, `expire_in`, `resource_group` |
+   | 👃 smell | секреты | литералы `*TOKEN*/*PASSWORD*/*SECRET*/*API_KEY*` в `variables`, `echo $TOKEN`, `CI_DEBUG_TRACE`, `set -x` рядом с секретами, `glpat-`, приватные ключи |
+   | 👂 sound | отладочный шум | `set -x`, `--verbose`/`-vvv`, `CI_DEBUG_SERVICES`, `echo` в каждой строке |
+   | 👁 sight | структура | эмодзи в именах джоб, `extends` глубже 2, много `<<: *`, джобы без `stage` |
+
+   Веса зависят от распространённости паттерна: массовые практики (`rules`, `needs`, ручной гейт на прод) весят мало, редкие (`interruptible`, `timeout`, `@sha256`) — больше.
+
+2. Уровни чувств выбирают один из ~1000 **заранее посчитанных** прогонов модели мозга (Shiu et al. 2024, FlyWire v783, 139 255 нейронов) — `public/runs/S0..S6.json`. Симуляции не пересчитываются; сетка уровней та же, что в оригинале.
+3. Вердикт — частота нейрона MN9 (выдвигает хоботок). Горечь его гасит, сильный запах уводит модель в meltdown. `rotScore()` ограничивает процент 💩 размером файла, разнообразием анти-паттернов и числом 💩-чувств (bitter не считается).
+4. У каждого правила-проблемы в `BAIT` есть `why` и `fix` — из них собирается список «Что поправить» (секреты первыми). Найденный текст не выводится.
+5. 3D — встроенный Neuroglancer (`public/ng/`, Apache-2.0).
+
+Мозг — настоящая модель, но он отвечает на «вкус», а не понимает YAML. Оценивают регулярки.
+
+## Приватность
+
+- Текст CI никуда не отправляется: ни на сервер, ни в аналитику, ни в `localStorage` (там хранится только выбранная тема).
+- Сетевые запросы: статика своего origin и меши FlyWire с `storage.googleapis.com` (их тянет браузер пользователя, а не хостинг). Проверено Playwright: при оценке образца других хостов нет.
+- Найденные секреты не выводятся и не логируются: в UI только название правила, количество и совет. Это покрыто тестом.
+
+## Запуск
 
 ```bash
-cd ../Drosophila_brain_model
-PYTHONPATH=. .venv/bin/python batch_sim.py 500     # ~45 min on an M-series Mac, 8 cores
-PYTHONPATH=. .venv/bin/python prep_runs.py         # → ../flyfluencer/public/runs.json
+cd public && python3 -m http.server 8787   # http://localhost:8787
+npm test                                    # без зависимостей, Node ≥ 20
 ```
 
-**Local dev**: `cd public && python3 -m http.server 8787` → http://localhost:8787 (the API is skipped locally).
+Темы: светлая и тёмная, по умолчанию — системная, переключатель ◐ в шапке.
 
-**Deploy**: Vercel, no build step (`npx vercel --prod`). Env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`. Run `supabase.sql` once in the Supabase SQL editor. Live: https://brainrotposts.com
+## Размещение
 
-**Share image**: open `/?og=1`, wait for the run, screenshot the 1200×630 stage → `public/og.png`.
+`.gitlab-ci.yml`: `npm test` → джоба `pages` публикует `public/` как есть. Запасной вариант — nginx со статикой:
 
-## Hall of Rot opt-in and sense experiments
+```bash
+docker run -d -p 8080:80 -v "$PWD/public:/usr/share/nginx/html:ro" nginx:alpine
+```
 
-- Scoring saves a private rating and returns an ID plus a per-result publication receipt. Only an explicit click on **Add to Hall of Rot** publishes that result; the receipt stays attached to the visible result while editing and is cleared when submitting or starting a new post.
-- The public leaderboard and voting function only include `is_public = true` rows. Existing ratings stay private because they have no recorded opt-in.
-- After scoring, **Light up another sense** shows the simulation's stimulated inputs for that post, prioritizes inactive senses, and preserves the post when the visitor chooses to edit it.
-- Rot scores combine the simulated response with caps for text length, vocabulary variety and the number of bait patterns. A short trigger phrase cannot earn 90–100%; sense coverage adds ceilings of 65%, 79%, 89%, 95% and 100% for one through five activated senses. All five are necessary but not sufficient for 100%. With all five active, 100 effective words clear the length requirement; at least five distinct bait patterns must also qualify. Meeting these game requirements awards 100% independently of the tongue response; the brain visualization still uses the actual simulation.
-- Sense buttons explain their input inline on hover/focus and load a tested example on click, with a restore-draft action. Editing preserves the last result and its sharing controls until resubmission.
-- Samples progress through sugar + sight, smell + hearing, then sugar + bitter + smell + sight, scoring 65%, 52% and 84%. They use the ordinary scoring rules. `npm test` checks each against the actual simulation files and verifies that original posts can still score 100. API and interaction tests use mocks; they do not publish real posts.
+Сервер должен отдавать `.wasm` как `application/wasm` (nginx и Pages — по умолчанию).
 
-### Release order
+## Отличия от оригинала
 
-Apply `supabase/migrations/20260915010000_hall_opt_in.sql` to the existing database immediately before deploying the updated API/frontend together. Fresh installs should use the complete `supabase.sql`. The new API fails closed if the consent columns are absent. The static local preview has no database API, so its hall is unavailable and it cannot publish results.
+- Удалены `api/`, Supabase, Vercel, `@vercel/og`, Hall of Rot, голосование, шаринг в LinkedIn, `?og=1`, OG-теги, Google Fonts (шрифты системные), скачивание картинки, звуки, кнопки-примеры чувств, `sim/`.
+- Правила и тексты переписаны под CI, интерфейс на русском.
+- В бандле Neuroglancer из оригинала не было wasm-декодера Draco, без него меши нейронов не декодируются. Добавлен `public/ng/09f21dcf7b4f13e8.wasm` — `lib/mesh/draco/neuroglancer_draco.wasm` из npm-пакета `neuroglancer@2.41.2` (Apache-2.0), ABI совпадает.
 
-### Result image downloads and LinkedIn previews
+## Атрибуция
 
-**Download image** saves a local 1200×630 PNG containing the actual Neuroglancer frame captured at scoring, fly, rating, verdict and activated senses. Editing preserves that result.
-
-**Share on LinkedIn** saves that image only after an explicit click, then opens LinkedIn with a unique `/s?id=...` URL. Its server-rendered Open Graph tags point to the screenshot, and visitors see the result image with a link back to the game. The original post remains private unless separately added to the Hall. Existing score-only share links continue to work.
-
-Apply `20260915020000_result_shares.sql` before deploying. The `result_shares` table uses row-level security with no anonymous table access. The upload API checks the result receipt, limits uploads to 1.5 MB landscape PNGs, and stores one immutable image per rating. The public image endpoint only accepts random UUIDs. Tests use mocked APIs and do not publish real posts.
+- Brain Rot — Franz Schrepf, MIT (`LICENSE`).
+- Коннектом: [FlyWire](https://flywire.ai) v783, CC BY 4.0.
+- Модель: [philshiu/Drosophila_brain_model](https://github.com/philshiu/Drosophila_brain_model), [Shiu et al., Nature 2024](https://www.nature.com/articles/s41586-024-07763-9).
+- 3D: [Neuroglancer](https://github.com/google/neuroglancer), Apache-2.0 (`public/ng/NOTICE`).

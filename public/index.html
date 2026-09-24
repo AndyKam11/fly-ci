@@ -1,119 +1,73 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Brain Rot</title>
-<meta name="description" content="Paste your LinkedIn post. A real fruit fly brain rates it. The more rotten the post, the more the fly loves it.">
-<meta property="og:title" content="Brain Rot — a fruit fly brain rates your LinkedIn post">
-<meta property="og:description" content="139,255 real neurons. Find out how rotten your post tastes.">
-<meta property="og:url" content="https://brainrotposts.com/">
-<meta property="og:image" content="https://brainrotposts.com/og.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<link rel="canonical" href="https://brainrotposts.com/">
-<meta name="twitter:card" content="summary_large_image">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Муха оценивает ваш CI</title>
+<meta name="description" content="Вставьте .gitlab-ci.yml — мозг мухи вынесет вердикт. Чем больше в CI 💩, тем больше муха в восторге.">
+<meta name="referrer" content="no-referrer">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪰</text></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bungee&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script>
+  // Theme: saved choice, else the system preference. Only the theme is stored — never the CI text.
+  (() => { let t = null; try { t = localStorage.getItem('theme'); } catch (e) {}
+    document.documentElement.dataset.theme = t || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); })();
+</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main class="wrap">
   <header class="top">
-    <div class="wordmark">BRAIN<span>ROT</span></div>
-    <p class="tag">A fruit fly brain rates your LinkedIn post.<br><b>The more rotten the post, the more the fly loves it.</b></p>
-    <nav aria-label="Main"><a class="nav-about" href="#about-x">What is this?</a><a class="nav-hall" href="#hall-x">🏆 Hall of Rot</a></nav>
+    <div class="wordmark">МУХА <span>CI</span></div>
+    <p class="tag">Мозг плодовой мушки оценивает ваш <code>.gitlab-ci.yml</code>. <b>Чем больше в CI 💩, тем больше муха в восторге.</b></p>
+    <button id="theme" class="theme-btn" type="button" aria-label="Переключить тему">◐</button>
   </header>
 
-  <section class="lab">
   <div class="stage">
-    <div class="brain-caption"><span>Fruit fly brain · 139,255 neurons</span><details><summary aria-label="About the brain">ⓘ</summary><p>A real brain reconstruction. Colours show neurons firing in the simulation. Only active pathways light up; the outline shows the whole brain.</p></details></div>
-    <iframe id="ng" src="ng/embed.html" title="Fly brain" loading="eager"></iframe>
-    <div class="hud"><span class="dot"></span><span id="phase">139,255 neurons · idle</span></div>
-    <div class="meter" aria-hidden="true"><div id="meterfill"></div></div>
+    <iframe id="ng" src="ng/embed.html" title="Мозг мухи"></iframe>
+    <div class="hud"><span class="dot"></span><span id="phase">139 255 нейронов · покой</span></div>
     <div class="key" id="key" hidden></div>
-
+    <div class="meter" aria-hidden="true"><div id="meterfill"></div></div>
     <div class="flychar" id="flychar" data-state="idle">
       <div class="bubble" id="bubble" hidden></div>
-      <div class="fly" id="flybody">🪰</div>
+      <div class="fly">🪰</div>
       <div class="fx" id="fx" aria-hidden="true"></div>
     </div>
-
-
     <div class="stage-verdict" id="v-title" hidden></div>
-    <div class="stamp" id="stamp" hidden><div class="pct"><span id="score">0</span>%</div><div class="lbl">BRAIN ROT</div></div>
+    <div class="stamp" id="stamp" hidden><div class="pct"><span id="score">0</span>%</div><div class="lbl">💩</div></div>
   </div>
 
-    <div class="workspace">
-    <p class="challenge">Can you hit <strong>100% brain rot?</strong> Light up all five senses.</p>
-    <form class="feedbox" id="feedbox" autocomplete="off">
-      <textarea id="post" rows="4" maxlength="6000" spellcheck="false" placeholder="Paste a LinkedIn post. See how rotten it tastes to a fly." aria-label="Your LinkedIn post"></textarea>
-      <div class="row">
-        <button id="go" class="btn" type="submit">Feed the fly</button>
-        <button id="sample" class="btn ghost" type="button">Try a Sample</button>
-      </div>
-      <button id="restore-post" class="btn ghost" type="button" hidden>Restore my post</button>
-    </form>
-
-  <section id="verdict" class="verdict" hidden>
-    <p id="result-context" class="privacy-note" role="status" hidden>Previous result · feed your edited post to update.</p>
-    <section class="verdict-senses" aria-labelledby="explore-title">
-      <h2 id="explore-title">You lit up 0/5 senses</h2>
-      <p class="sense-help">Hover to learn. Tap a sense to load an example.</p>
-      <div id="sense-progress" class="sense-progress" aria-label="Senses activated by this post"></div>
-      <p id="experiment-hint" aria-live="polite"></p>
-      <details class="x" id="senses-x">
-        <summary>How the fly read your post</summary>
-        <div class="tele" id="tele"></div>
-        <div id="senses" class="senses" hidden></div>
-        <div class="x-more"><a id="ng-link" target="_blank" rel="noopener">open these neurons in Neuroglancer ↗</a></div>
-      </details>
-    </section>
-
-    <div class="result-actions">
-      <button id="download-image" class="btn ghost" type="button" disabled>Download image</button>
-      <button id="share" class="btn" type="button" disabled>Share on LinkedIn</button>
-      <button id="publish" class="btn ghost" type="button" disabled>Add to Hall of Rot</button>
+  <form class="feedbox" id="feedbox" autocomplete="off">
+    <textarea id="post" rows="12" maxlength="60000" spellcheck="false" autocapitalize="off" placeholder="Вставьте .gitlab-ci.yml. Текст никуда не отправляется: всё считается в браузере." aria-label="Ваш .gitlab-ci.yml"></textarea>
+    <div class="row">
+      <button id="go" class="btn" type="submit">Скормить мухе</button>
+      <button id="sample" class="btn ghost" type="button">Взять образец</button>
     </div>
-    <p id="image-status" class="privacy-note" role="status"></p>
-    <a id="share-fallback" class="btn" target="_blank" rel="noopener noreferrer" hidden>Continue to LinkedIn ↗</a>
-    <p id="publish-status" class="privacy-note" role="status">Hall of Rot makes your post public. Optional, every time.</p>
+  </form>
 
-    <div class="pct" id="pct"></div>
-
-  </section>
-
-    </div>
+  <section id="verdict" hidden>
+    <h2>Что поправить</h2>
+    <ol id="fixes" class="fixes"></ol>
+    <p id="good" class="good"></p>
+    <p class="tele" id="tele"></p>
   </section>
 
   <footer class="foot">
-    <details class="x" id="about-x" tabindex="-1">
-      <summary>What is this?</summary>
-      <p><a href="https://flywire.ai" target="_blank" rel="noopener">FlyWire</a> mapped every neuron in an adult fruit fly brain; <a href="https://www.nature.com/articles/s41586-024-07763-9" target="_blank" rel="noopener">Shiu et al. (Nature 2024)</a> turned that wiring diagram into a working simulation of all 139,255 neurons. We ran that simulation ~1,000 times with every combination of the five senses above stimulated at different strengths, and your post picks the run that matches what it tastes, smells, sounds and looks like. The simulation measures MN9, the motor neuron that extends the fly's proboscis: sugar drives it, bitter suppresses it — both validated results of the paper. Brain rot is our game score: the simulated response is capped by the length, vocabulary variety and mix of bait patterns in your post. Short bait can light up the brain without earning a top score. Reaching 100% requires all five senses, at least 100 words with enough vocabulary variety, and five distinct bait patterns. Completing that challenge earns 100% even if bitter suppresses the simulated tongue response. The 3D view is the real reconstruction, showing the neurons that actually fired, in spike order, coloured by which sense they came from. Neuron names like <em>bluebell</em> and <em>good_dog</em> are the paper's real nicknames. Scored posts are saved privately. A post only appears in the Hall of Rot when its submitter chooses to add it.</p>
-      <p class="credits">Built by <a href="https://www.linkedin.com/in/franz-josef-schrepf/" target="_blank" rel="noopener">Franz Schrepf</a> · Connectome: FlyWire v783 · Model: <a href="https://github.com/philshiu/Drosophila_brain_model" target="_blank" rel="noopener">philshiu/Drosophila_brain_model</a> · Viewer: <a href="https://github.com/google/neuroglancer" target="_blank" rel="noopener">Neuroglancer</a> · <a href="https://github.com/Franz23/brainrot" target="_blank" rel="noopener">Source</a></p>
-    </details>
     <details class="x">
-      <summary>how does a post become a taste?</summary>
-      <div class="legend">
-        <div class="lg" style="--c:#ffcc33"><b>🍬 Sugar</b> — humblebrags, "let that sink in", "Agree?", hashtags, one-line paragraphs, origin stories, the word "journey". Goes to the fly's sugar-sensing neurons. Sugar makes the tongue come out.</div>
-        <div class="lg" style="--c:#c56bff"><b>🧪 Bitter</b> — numbers, percentages, long sentences, real paragraphs, "because", "however", specifics like churn or a termination clause. Goes to all 65 bitter-sensing neurons. Bitter keeps the tongue in.</div>
-        <div class="lg" style="--c:#5dff9a"><b>👃 Smell</b> — delve, tapestry, testament, pivotal, leverage, "it's not X, it's Y", em dashes, rules of three. Goes in through the antennae. Too much and the whole brain runs away with itself.</div>
-        <div class="lg" style="--c:#5ab8ff"><b>👂 Hearing</b> — SHOUTING, exclamation marks!!!, "LET'S GOOO". Goes to the auditory neurons in the antennae.</div>
-        <div class="lg" style="--c:#e8f4ff"><b>👁 Sight</b> — emoji, bullet points, arrows, ticks. Goes to 800 photoreceptors. The optic lobes light up. The fly sees your post. It does not read it.</div>
-      </div>
+      <summary>Как это работает</summary>
+      <p><b>Честно: оценивают регулярки.</b> Текст CI раскладывается по пяти «чувствам» набором регулярных выражений (<code>BAIT</code> в <code>app.js</code>). Никакого разбора YAML, <code>include:</code> и <code>extends:</code> между файлами — для настоящей проверки есть CI Lint. Это развлечение, а не линтер.</p>
+      <p><b>Мозг — настоящая модель, но YAML он не понимает.</b> <a href="https://flywire.ai" target="_blank" rel="noopener">FlyWire</a> реконструировал каждый нейрон мозга взрослой плодовой мушки, а <a href="https://www.nature.com/articles/s41586-024-07763-9" target="_blank" rel="noopener">Shiu et al. (Nature 2024)</a> превратили эту схему в симуляцию всех 139 255 нейронов. Авторы <a href="https://github.com/Franz23/brainrot" target="_blank" rel="noopener">Brain Rot</a> заранее прогнали её около 1000 раз со всеми сочетаниями пяти чувств на разной силе. Уровни чувств вашего CI выбирают подходящий прогон — муха отвечает на «вкус», а не на смысл.</p>
+      <p>Вердикт даёт нейрон MN9, который выдвигает хоботок: сахар его разгоняет, горечь подавляет — оба эффекта подтверждены в статье. Процент 💩 — игровой счёт: ответ модели ограничен размером файла, разнообразием анти-паттернов и числом 💩-чувств (всё, кроме горечи). Сильный запах уводит модель в неуправляемую активность — это meltdown. 3D — настоящая реконструкция: нейроны, которые разрядились, в порядке разрядов.</p>
+      <p><b>Приватность.</b> Всё считается в браузере. Текст не отправляется на сервер, в аналитику и не сохраняется. Сеть нужна только для статики этой страницы и 3D-мешей FlyWire (<code>storage.googleapis.com</code>). Найденные секреты не выводятся: показываются только название правила, количество и совет.</p>
+      <p class="credits">Форк <a href="https://github.com/Franz23/brainrot" target="_blank" rel="noopener">Brain Rot</a> (Franz Schrepf, MIT) · Коннектом: <a href="https://flywire.ai" target="_blank" rel="noopener">FlyWire</a> v783, CC BY 4.0 · Модель: <a href="https://github.com/philshiu/Drosophila_brain_model" target="_blank" rel="noopener">philshiu/Drosophila_brain_model</a> (Shiu et al., 2024) · 3D: <a href="https://github.com/google/neuroglancer" target="_blank" rel="noopener">Neuroglancer</a> (Apache-2.0)</p>
     </details>
-    <div class="count" id="count"></div>
   </footer>
-
-  <section class="hall-section" id="hall-x" aria-labelledby="hall-title" tabindex="-1">
-    <h2 id="hall-title">🏆 Hall of Rot</h2>
-    <p class="privacy-note">Voluntarily submitted. Judged by a fly. Can you beat them?</p>
-    <div id="hall" class="hall" aria-live="polite">loading…</div>
-  </section>
-
 </main>
-<script src="result-image.js"></script>
 <script src="app.js"></script>
+<script>
+  document.getElementById('theme').addEventListener('click', () => {
+    const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = t; try { localStorage.setItem('theme', t); } catch (e) {}
+  });
+</script>
 </body>
 </html>

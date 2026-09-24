@@ -1,12 +1,9 @@
 {
-  "name": "flyfluencer",
+  "name": "fly-ci-judge",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=20"
-  },
-  "dependencies": {
-    "@vercel/og": "^0.6.5"
   },
   "scripts": {
     "test": "node --test tests/*.test.js"
