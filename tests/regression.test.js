@@ -40,6 +40,10 @@ test('image tags: latest and untagged are sugar, pinned and variable images are 
   assert.deepEqual(Array.from(scoring().sense(images(['node', 'node:latest', 'registry:5000/app', '"python"'])).hits.sugar, h => h.n), [4]);
   assert.deepEqual(hitLabels(images(['node:20', 'registry:5000/app:1.2', '$CI_REGISTRY_IMAGE', 'alpine@sha256:0123456789abcdef']), 'sugar'), []);
 });
+test('docker run in a script is sugar, other docker commands and comments are not', () => {
+  assert.deepEqual(Array.from(scoring().sense('job:\n  script:\n    - docker run --rm app ./test\n    - make && docker container run -d db').hits.sugar, h => [h.label, h.n]), [['docker run в script', 2]]);
+  assert.deepEqual(hitLabels('job:\n  script:\n    # docker run app\n    - docker build -t app .\n    - docker push app\n    - docker-compose run app', 'sugar'), []);
+});
 test('docker login via password-stdin and variable references are not secrets', () => {
   const text = 'variables:\n  CI_TOKEN: $CI_JOB_TOKEN\n  SECRET_DETECTION_EXCLUDED_PATHS: "tests/"\n  VAULT_TOKEN_URL: "https://vault.example"\n  SECRET_PATH: "kv/app"\njob:\n  script:\n    - echo "$CI_REGISTRY_PASSWORD" | docker login -u x --password-stdin';
   assert.deepEqual(hitLabels(text, 'smell'), []);
